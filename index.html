@@ -5,7 +5,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Modem Configuration Visualizer</title>
+    <link rel="icon" href="https://raw.githubusercontent.com/pgarciafer/MTNmodem/main/logo1.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: {
+                DEFAULT: '#005A9C',
+                hover: '#004a80',
+              },
+              danger: '#dc3545',
+              success: '#28a745',
+            }
+          }
+        }
+      }
+    </script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
@@ -20,7 +37,7 @@
       }
     </script>
   </head>
-  <body class="bg-gray-900 text-gray-100">
+  <body class="bg-white text-gray-800">
     <div id="root"></div>
     <script type="text/babel" data-type="module">
       import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
@@ -77,20 +94,20 @@
           <div className="w-full max-w-2xl mx-auto">
             <label
               htmlFor="file-upload"
-              className="relative block w-full h-64 rounded-lg border-2 border-dashed border-gray-600 p-12 text-center hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cursor-pointer bg-gray-800 transition-colors"
+              className="relative block w-full h-64 rounded-lg border-2 border-dashed border-gray-300 p-12 text-center hover:border-primary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/50 cursor-pointer bg-gray-100 transition-colors"
               onDragOver={handleDragOver}
               onDrop={handleDrop}
             >
               <svg
-                className="mx-auto h-12 w-12 text-gray-500"
+                className="mx-auto h-12 w-12 text-gray-400"
                 stroke="currentColor"
                 fill="none"
                 viewBox="0 0 24 24"
               >
                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
               </svg>
-              <span className="mt-2 block text-sm font-medium text-gray-400">
-                Drag and drop <span className="text-indigo-400">.zip</span> or <span className="text-indigo-400">.json</span> files
+              <span className="mt-2 block text-sm font-medium text-gray-600">
+                Drag and drop <span className="text-primary">.zip</span> or <span className="text-primary">.json</span> files
               </span>
               <span className="mt-1 block text-xs text-gray-500">or click to browse</span>
               <input
@@ -109,32 +126,30 @@
       
       const vlanColorStyles = {
         '1': {
-            bg: 'bg-green-500/20',
+            bg: 'bg-green-100',
             border: 'border-green-400',
-            text: 'text-green-300',
-            led: 'bg-green-400 shadow-[0_0_5px_1px_rgba(74,222,128,0.7)]',
-            hex: '#4ade80' // Corresponds to Tailwind's green-400
+            text: 'text-green-800',
+            led: 'bg-green-500 shadow-[0_0_5px_1px_rgba(34,197,94,0.7)]',
+            hex: '#4ade80'
         },
         '900': {
-            bg: 'bg-sky-500/20',
+            bg: 'bg-sky-100',
             border: 'border-sky-400',
-            text: 'text-sky-300',
-            led: 'bg-sky-400 shadow-[0_0_5px_1px_rgba(56,189,248,0.7)]',
-            hex: '#38bdf8' // Corresponds to Tailwind's sky-400
+            text: 'text-sky-800',
+            led: 'bg-sky-500 shadow-[0_0_5px_1px_rgba(14,165,233,0.7)]',
+            hex: '#38bdf8'
         },
         'default': {
-            bg: 'bg-gray-500/20',
+            bg: 'bg-gray-100',
             border: 'border-gray-400',
-            text: 'text-gray-300',
-            led: 'bg-gray-400 shadow-[0_0_5px_1px_rgba(156,163,175,0.7)]',
-            hex: '#9ca3af' // Corresponds to Tailwind's gray-400
+            text: 'text-gray-800',
+            led: 'bg-gray-500 shadow-[0_0_5px_1px_rgba(107,114,128,0.7)]',
+            hex: '#9ca3af'
         }
       };
 
       const LanPortIcon = ({ className }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 7.125A2.25 2.25 0 0 1 4.5 4.875h15A2.25 2.25 0 0 1 21.75 7.125v1.518a2.25 2.25 0 0 1-.659 1.591l-5.232 5.232a2.25 2.25 0 0 1-1.591.659h-3.439a2.25 2.25 0 0 1-1.591-.659L4.44 10.234A2.25 2.25 0 0 1 3.781 8.643V7.125ZM12 6.375v3.75m-2.25-3.75v3.75m4.5-3.75v3.75" />
-        </svg>
+        <img src="https://raw.githubusercontent.com/pgarciafer/MTNmodem/main/lanport.png" alt="LAN Port" className={className} />
       );
 
       const ModemSchematic = ({ config }) => {
@@ -163,7 +178,7 @@
             const vlanListString = vlanList.join(', ');
 
             let portStyle = {};
-            let portClasses = 'group relative rounded-lg p-2 border-2 text-center transition-all w-full flex flex-col justify-between items-center min-h-[6rem] hover:scale-105 hover:shadow-xl hover:border-sky-400';
+            let portClasses = 'group relative rounded-lg p-2 border-2 text-center transition-all w-full flex flex-col justify-between items-center min-h-[6rem] hover:scale-105 hover:shadow-xl hover:border-primary';
             let ledClasses = 'w-2 h-2 rounded-full animate-pulse';
 
             if (isMultiVlan) {
@@ -174,12 +189,12 @@
                     ? `linear-gradient(45deg, ${gradientColors.join(', ')})`
                     : `solid ${gradientColors[0] || vlanColorStyles.default.hex}`;
 
-                portClasses += ' border-sky-400 text-gray-100'; // Use a consistent border for gradients
-                ledClasses += ' bg-white shadow-[0_0_5px_1px_rgba(255,255,255,0.7)]'; // Bright white LED for multi-vlan
+                portClasses += ' border-primary text-gray-800';
+                ledClasses += ' bg-white shadow-[0_0_5px_1px_rgba(255,255,255,0.7)]';
             } else {
                 const singleVlan = String(vlanList[0] || 'default');
                 const styles = vlanColorStyles[singleVlan] || vlanColorStyles.default;
-                portClasses += ` ${styles.bg} ${styles.border} ${styles.text} bg-black/20`;
+                portClasses += ` ${styles.bg} ${styles.border} ${styles.text}`;
                 ledClasses += ` ${styles.led}`;
             }
 
@@ -187,43 +202,33 @@
                 <div className={portClasses} style={portStyle}>
                     <div className="w-full flex justify-between items-center">
                         <div className={ledClasses}></div>
-                        <div className="text-xs font-mono text-gray-400">P{port.port_number}</div>
+                        <div className="text-xs font-mono text-gray-500">P{port.port_number}</div>
                     </div>
 
-                    <LanPortIcon className="w-6 h-6 sm:w-8 sm:h-8 text-gray-500 my-1"/>
+                    <LanPortIcon className="w-8 h-8 sm:w-10 sm:h-10 my-1"/>
                     
                     <div className="text-sm font-semibold">{isMultiVlan ? 'VLANs' : 'VLAN'} {vlanListString}</div>
 
-                    {/* Tooltip */}
-                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-max max-w-xs bg-gray-900 text-white text-xs rounded-lg shadow-lg p-2 border border-gray-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10">
+                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-max max-w-xs bg-white text-gray-700 text-xs rounded-lg shadow-lg p-2 border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10">
                         <dl className="space-y-1">
                           {ipAddressesInfo.map(({ vlan, ip }) => (
                             <div key={vlan} className="flex justify-between items-start gap-4">
-                                <dt className="text-gray-400 flex-shrink-0">VLAN {vlan} IP:</dt>
+                                <dt className="text-gray-500 flex-shrink-0">VLAN {vlan} IP:</dt>
                                 <dd className="font-semibold font-mono">{ip}</dd>
                             </div>
                           ))}
                         </dl>
-                        <div className="absolute left-1/2 -translate-x-1/2 bottom-[-4px] w-2 h-2 bg-gray-900 transform rotate-45 border-b border-r border-gray-700"></div>
+                        <div className="absolute left-1/2 -translate-x-1/2 bottom-[-4px] w-2 h-2 bg-white transform rotate-45 border-b border-r border-gray-200"></div>
                     </div>
                 </div>
             );
         };
 
         return (
-          <div className="bg-gray-800/50 rounded-lg p-6 shadow-lg border border-gray-700">
-            <h2 className="text-xl font-bold text-gray-200 mb-4">Modem Schematic</h2>
-            <div className="bg-gray-900 rounded-lg p-4 flex flex-col md:flex-row items-center gap-6">
-              <div className="flex-shrink-0 bg-black/20 p-4 rounded-md w-full md:w-40 text-center flex flex-col justify-center items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-gray-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 12H3" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.243 16.243L7.757 7.757" />
-                  </svg>
-                  <p className="text-lg font-semibold tracking-wider text-gray-200">MODEM</p>
-                  <p className="text-xs text-gray-400">LAN Interface</p>
-              </div>
-              <div className="flex-1 flex flex-col justify-center gap-2 md:gap-4 w-full">
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <h2 className="text-xl font-bold text-gray-700 mb-4">Modem Schematic</h2>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex flex-col justify-center gap-2 md:gap-4 w-full">
                 {is8PortLayout && (
                   <div className="grid grid-cols-4 gap-2 md:gap-4">
                     {topRowPorts.map((port) => <Port key={port.port_number} port={port} />)}
@@ -239,21 +244,21 @@
       };
 
       const DetailItem = ({ label, value, className = '' }) => (
-        <div className={`flex justify-between items-start py-2 border-b border-gray-700/50 ${className}`}>
-          <dt className="text-sm text-gray-400 truncate pr-2">{label}</dt>
-          <dd className="text-sm font-semibold text-gray-200 text-right">{value}</dd>
+        <div className={`flex justify-between items-start py-2 border-b border-gray-200 ${className}`}>
+          <dt className="text-sm text-gray-500 truncate pr-2">{label}</dt>
+          <dd className="text-sm font-semibold text-gray-800 text-right">{value}</dd>
         </div>
       );
 
       const StatusPill = ({ enabled }) => (
           enabled ? 
-          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-500/20 text-green-300">Enabled</span> :
-          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-500/20 text-red-300">Disabled</span>
+          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Enabled</span> :
+          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Disabled</span>
       );
 
       const DhcpDetails = ({ dhcpConfig }) => (
           <>
-              <h4 className="font-semibold text-gray-300 mt-4 mb-2">DHCPv4 Configuration</h4>
+              <h4 className="font-semibold text-gray-600 mt-4 mb-2">DHCPv4 Configuration</h4>
               <dl>
                   <DetailItem label="Status" value={<StatusPill enabled={dhcpConfig.dhcp_enable === 1} />} />
                   <DetailItem label="Gateway" value={<code className="text-sm">{dhcpConfig.dhcp_gateway_ip}</code>} />
@@ -267,12 +272,12 @@
       );
 
       const VlanCard = ({ vlanConfig }) => (
-          <div className="bg-gray-800/50 rounded-lg p-6 shadow-md border border-gray-700">
-              <h3 className="text-lg font-bold text-indigo-400 mb-3">VLAN Configuration: <span className="text-white">{vlanConfig.vid}</span></h3>
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+              <h3 className="text-lg font-bold text-primary mb-3">VLAN Configuration: <span className="text-gray-900">{vlanConfig.vid}</span></h3>
               
-              <h4 className="font-semibold text-gray-300 mb-2">IP Interfaces</h4>
+              <h4 className="font-semibold text-gray-600 mb-2">IP Interfaces</h4>
               {vlanConfig.IP_INTERFACES.map((iface, index) => (
-                  <div key={index} className="bg-gray-900/50 p-3 rounded-md mb-2">
+                  <div key={index} className="bg-gray-50 p-3 rounded-md mb-2">
                       <dl>
                           <DetailItem label="Interface" value={iface.interface} className="border-none py-1" />
                           <DetailItem label="Address" value={<code className="text-sm">{iface.address}</code>} className="border-none py-1" />
@@ -289,8 +294,8 @@
       const ConfigurationSummary = ({ config }) => {
         return (
           <div className="space-y-6">
-             <div className="bg-gray-800/50 rounded-lg p-6 shadow-md border border-gray-700">
-               <h3 className="text-lg font-bold text-indigo-400 mb-3">General Information</h3>
+             <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+               <h3 className="text-lg font-bold text-primary mb-3">General Information</h3>
                <dl>
                  <DetailItem label="Element Type" value={config.NMS.type} />
                  <DetailItem label="Element ID" value={config.NMS.element_id} />
@@ -312,13 +317,13 @@
         const [isOpen, setIsOpen] = useState(defaultOpen);
 
         return (
-          <div className={`bg-gray-800/50 rounded-lg shadow-md border border-gray-700 ${className}`}>
+          <div className={`bg-white rounded-lg shadow-sm border border-gray-200 ${className}`}>
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="w-full flex justify-between items-center p-4 text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-amber-500"
+              className="w-full flex justify-between items-center p-4 text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary/50"
               aria-expanded={isOpen}
             >
-              <h3 className="text-lg font-bold text-amber-400">{title}</h3>
+              <h3 className="text-lg font-bold text-primary">{title}</h3>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className={`h-6 w-6 transform transition-transform duration-200 text-gray-400 ${isOpen ? 'rotate-180' : ''}`}
@@ -331,7 +336,7 @@
             </button>
             {isOpen && (
               <div className="p-4 pt-0">
-                <div className="border-t border-gray-700/50 pt-4">
+                <div className="border-t border-gray-200 pt-4">
                   {children}
                 </div>
               </div>
@@ -419,8 +424,8 @@
 
         if (!config || typeof config !== 'object' || Object.keys(config).length === 0) {
             return (
-                <div className="bg-gray-800/50 rounded-lg p-6 shadow-md border border-gray-700 text-center">
-                    <h3 className="text-lg font-bold text-gray-400 mb-2">No Data to Display</h3>
+                <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 text-center">
+                    <h3 className="text-lg font-bold text-gray-500 mb-2">No Data to Display</h3>
                     <p className="text-gray-500">The configuration file is empty or could not be parsed as a valid object.</p>
                 </div>
             );
@@ -428,7 +433,7 @@
 
         const renderValue = (value) => {
             if (typeof value === 'boolean') return <StatusPill enabled={value} />;
-            if (value === null) return <code className="text-sm text-gray-400">null</code>;
+            if (value === null) return <code className="text-sm text-gray-500">null</code>;
             if (Array.isArray(value)) {
                 if (value.every(item => typeof item !== 'object' || item === null)) {
                     return <code className="text-sm break-all">{value.join(', ')}</code>;
@@ -436,8 +441,8 @@
                 return (
                     <div className="space-y-2">
                         {value.map((item, index) => (
-                            <div key={index} className="bg-gray-900/50 p-3 rounded-md">
-                                <pre className="text-xs text-gray-300 overflow-x-auto whitespace-pre-wrap break-all">
+                            <div key={index} className="bg-gray-100 p-3 rounded-md">
+                                <pre className="text-xs text-gray-800 overflow-x-auto whitespace-pre-wrap break-all">
                                     {JSON.stringify(item, null, 2)}
                                 </pre>
                             </div>
@@ -447,7 +452,7 @@
             }
             if (typeof value === 'object') {
                  return (
-                    <pre className="mt-1 text-left bg-gray-900/50 p-3 rounded-md overflow-x-auto text-xs text-gray-300 whitespace-pre-wrap break-all">
+                    <pre className="mt-1 text-left bg-gray-100 p-3 rounded-md overflow-x-auto text-xs text-gray-800 whitespace-pre-wrap break-all">
                         {JSON.stringify(value, null, 2)}
                     </pre>
                 );
@@ -461,8 +466,8 @@
 
             if (isBlock) {
                  return (
-                    <div key={key} className="py-2 border-b border-gray-700/50">
-                        <dt className="text-sm text-gray-400">{formattedKey}</dt>
+                    <div key={key} className="py-2 border-b border-gray-200">
+                        <dt className="text-sm text-gray-500">{formattedKey}</dt>
                         <dd className="mt-1">{renderValue(value)}</dd>
                     </div>
                  );
@@ -478,16 +483,16 @@
         return (
             <div className="space-y-6">
                 {keyInfo.length > 0 && (
-                    <div className="bg-gradient-to-br from-indigo-800/50 to-gray-800/50 rounded-lg p-6 shadow-lg border border-indigo-600">
-                        <h3 className="text-xl font-bold text-indigo-300 mb-4 flex items-center gap-x-2">
+                    <div className="bg-gradient-to-br from-blue-100 to-gray-50 rounded-lg p-6 shadow-sm border border-primary/50">
+                        <h3 className="text-xl font-bold text-primary mb-4 flex items-center gap-x-2">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v1h2a1 1 0 011 1v3a1 1 0 01-1 1h-2v1a2 2 0 01-2-2H7a2 2 0 01-2-2v-1H3a1 1 0 01-1-1V7a1 1 0 011-1h2V5z" /></svg>
                             Key Information
                         </h3>
                         <dl className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3">
                             {keyInfo.map(({ label, value }) => (
                                 <div key={label} className="flex flex-col">
-                                    <dt className="text-sm text-gray-400">{label}</dt>
-                                    <dd className="text-lg font-semibold text-gray-100 font-mono break-all">{value}</dd>
+                                    <dt className="text-sm text-gray-500">{label}</dt>
+                                    <dd className="text-lg font-semibold text-gray-900 font-mono break-all">{value}</dd>
                                 </div>
                             ))}
                         </dl>
@@ -529,13 +534,13 @@
       };
       
       const ViewSwitcher = ({ currentView, setCurrentView, lanAvailable, optAvailable, constellationAvailable }) => {
-        const buttonBaseClasses = "font-semibold py-2 px-4 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 flex items-center";
-        const activeClasses = "bg-indigo-600 text-white";
-        const inactiveClasses = "bg-gray-700 hover:bg-gray-600 text-gray-300";
-        const disabledClasses = "bg-gray-700/50 text-gray-500 cursor-not-allowed";
+        const buttonBaseClasses = "font-semibold py-2 px-4 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-50 flex items-center";
+        const activeClasses = "bg-primary text-white shadow-md";
+        const inactiveClasses = "bg-white hover:bg-gray-100 text-gray-700 border border-gray-300";
+        const disabledClasses = "bg-gray-200 text-gray-400 cursor-not-allowed";
 
         const Checkmark = () => (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-400 ml-2" viewBox="0 0 20 20" fill="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500 ml-2" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
         );
@@ -583,7 +588,7 @@
             mapRef.current = L.map('map', {
                 worldCopyJump: true
             }).setView([0, 0], 2);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
               attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
               subdomains: 'abcd',
               maxZoom: 20
@@ -633,7 +638,6 @@
             const map = mapRef.current;
             if (!config || !map) return;
         
-            // Clear old layers from map and refs
             Object.values(layersRef.current).forEach(layer => {
                 if (map.hasLayer(layer)) {
                     map.removeLayer(layer);
@@ -666,11 +670,10 @@
             });
             beamsDataRef.current = allBeams;
         
-            // Pre-create all layers
             const newLayers = {};
             Object.values(allBeams).forEach(beamData => {
                 const layers = [];
-                const style = { color: "#f59e0b", weight: 2, opacity: 0.8, fillColor: "#f59e0b", fillOpacity: 0.2 };
+                const style = { color: "#D97706", weight: 2, opacity: 0.8, fillColor: "#FBBF24", fillOpacity: 0.2 };
                 
                 (beamData.CONTOUR || []).forEach(contour => {
                     if (contour.type === 1 && contour.points) {
@@ -714,7 +717,6 @@
             const currentLayers = layersRef.current;
             if (!map || !currentLayers) return;
     
-            // Remove all beam layers from the map
             Object.values(currentLayers).forEach(layer => {
                 if (map.hasLayer(layer)) {
                     map.removeLayer(layer);
@@ -753,12 +755,12 @@
         return (
             <div className="space-y-6">
                 <div className="max-w-md">
-                    <label htmlFor="satellite-select" className="block text-sm font-medium text-gray-300 mb-2">Select Satellite Group</label>
+                    <label htmlFor="satellite-select" className="block text-sm font-medium text-gray-600 mb-2">Select Satellite Group</label>
                     <select
                         id="satellite-select"
                         value={selectedLongitude}
                         onChange={handleSatelliteChange}
-                        className="block w-full pl-3 pr-10 py-2 text-base border-gray-600 bg-gray-800 text-white focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm rounded-md"
+                        className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 bg-white text-gray-800 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md"
                     >
                         <option value="">-- Please choose a satellite --</option>
                         {Object.entries(satelliteGroups).sort((a,b) => parseFloat(a[0]) - parseFloat(b[0])).map(([lon, group]) => (
@@ -772,14 +774,14 @@
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-6">
                         {selectedGroup && (
-                            <div className="bg-gray-800/50 rounded-lg p-4 shadow-md border border-gray-700">
-                                <h3 className="text-lg font-bold text-amber-400 mb-3">Available Beams</h3>
+                            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                                <h3 className="text-lg font-bold text-primary mb-3">Available Beams</h3>
                                 <div className="max-h-60 overflow-y-auto pr-2 space-y-2">
                                     {selectedGroup.beams.map(beam => (
                                         <button 
                                             key={beam.uniqueId}
                                             onClick={() => setSelectedBeamId(beam.uniqueId)}
-                                            className={`w-full text-left p-2 rounded-md transition-colors ${selectedBeamId === beam.uniqueId ? 'bg-amber-500/20 text-amber-300' : 'hover:bg-gray-700/50'}`}
+                                            className={`w-full text-left p-2 rounded-md transition-colors ${selectedBeamId === beam.uniqueId ? 'bg-primary/10 text-primary' : 'hover:bg-gray-100'}`}
                                         >
                                             <span className="font-semibold">Beam ID: {beam.beam_id}</span>
                                         </button>
@@ -788,15 +790,15 @@
                             </div>
                         )}
                         {selectedBeam && (
-                            <div className="bg-gray-800/50 rounded-lg p-4 shadow-md border border-gray-700">
-                                <h3 className="text-lg font-bold text-amber-400 mb-3">Beam Summary</h3>
+                            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                                <h3 className="text-lg font-bold text-primary mb-3">Beam Summary</h3>
                                 <dl>
                                     <DetailItem label="Satellite Name" value={selectedBeam.satellite_name} />
                                     <DetailItem label="Satellite Longitude" value={formatLongitude(selectedBeam.satellite_longitude)} />
                                     <DetailItem label="Beam ID" value={selectedBeam.beam_id} />
                                     {selectedBeam.carriers && selectedBeam.carriers.map((carrier, index) => (
                                         <React.Fragment key={index}>
-                                           <div className="pt-2 mt-2 border-t border-gray-700/50">
+                                           <div className="pt-2 mt-2 border-t border-gray-200">
                                               <DetailItem label={`Polarization`} value={carrier.polarization} className="border-none"/>
                                               <DetailItem label={`Center Freq`} value={`${(carrier.center_freq / 1000).toFixed(2)} KHz`} className="border-none"/>
                                               <DetailItem label={`Symbol Rate`} value={carrier.symbol_rate} className="border-none"/>
@@ -808,7 +810,7 @@
                         )}
                     </div>
                     <div className="min-h-[24rem]">
-                        <div id="map" className="w-full h-96 md:h-full rounded-lg bg-gray-800 border border-gray-700 shadow-lg"></div>
+                        <div id="map" className="w-full h-96 md:h-full rounded-lg bg-gray-200 border border-gray-300 shadow-lg"></div>
                     </div>
                 </div>
             </div>
@@ -948,21 +950,19 @@
         const hasConfig = lanConfig || optConfig || constellationConfig;
 
         return (
-          <div className="min-h-screen bg-gray-900 text-gray-100 p-4 sm:p-6 lg:p-8">
+          <div className="min-h-screen bg-white text-gray-800 p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
-              <header className="text-center mb-8">
-                <h1 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">
+              <header className="text-center mb-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+                <img src="https://raw.githubusercontent.com/pgarciafer/MTNblockagechart/main/logo.png" alt="MTN Logo" className="h-12" />
+                <h1 className="text-3xl sm:text-4xl font-bold text-primary">
                   Modem Configuration Visualizer
                 </h1>
-                <p className="mt-2 text-lg text-gray-400">
-                  Upload configuration <code className="bg-gray-700 text-sm rounded px-1 py-0.5">.zip</code> or <code className="bg-gray-700 text-sm rounded px-1 py-0.5">.json</code> files to see the details.
-                </p>
               </header>
 
               <main>
                 {isLoading && (
                    <div className="text-center">
-                      <p className="text-lg text-indigo-400 animate-pulse">Parsing configuration...</p>
+                      <p className="text-lg text-primary animate-pulse">Parsing configuration...</p>
                    </div>
                 )}
 
@@ -973,7 +973,7 @@
                 )}
                 
                 {error && (
-                   <div className="mt-6 max-w-2xl mx-auto bg-red-900/50 border border-red-700 text-red-300 px-4 py-3 rounded-lg text-center" role="alert">
+                   <div className="mt-6 max-w-2xl mx-auto bg-red-100 border border-red-300 text-red-800 px-4 py-3 rounded-lg text-center" role="alert">
                       <strong className="font-bold">Error: </strong>
                       <span className="block sm:inline whitespace-pre-wrap">{error}</span>
                   </div>
@@ -981,14 +981,14 @@
 
                 {!isLoading && hasConfig && (
                   <div className="space-y-8">
-                    <div className="flex justify-between items-center bg-gray-800 p-4 rounded-lg border border-gray-700">
+                    <div className="flex justify-between items-center bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
                         <div>
                             <h2 className="text-xl font-semibold">Loaded Configuration(s)</h2>
-                            <p className="text-sm text-gray-400 truncate max-w-md" title={fileName}>{fileName}</p>
+                            <p className="text-sm text-gray-500 truncate max-w-md" title={fileName}>{fileName}</p>
                         </div>
                         <button
                           onClick={handleReset}
-                          className="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-indigo-500 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-indigo-500 flex-shrink-0"
+                          className="bg-primary text-white font-semibold py-2 px-4 rounded-md hover:bg-primary-hover transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white focus:ring-primary flex-shrink-0"
                         >
                           Load Other File(s)
                         </button>
@@ -1017,9 +1017,6 @@
                   </div>
                 )}
               </main>
-              <footer className="text-center mt-12 text-sm text-gray-500">
-                  <p>Built with React and Tailwind CSS.</p>
-              </footer>
             </div>
           </div>
         );
