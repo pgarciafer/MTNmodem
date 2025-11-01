@@ -767,7 +767,10 @@
                                 setSelectedBeamId(null);
                                 setIsResultsOpen(true);
                             }}
-                            onFocus={() => setIsResultsOpen(true)}
+                            onFocus={(e) => {
+                                setIsResultsOpen(true);
+                                e.target.select();
+                            }}
                             onBlur={() => {
                                 // Delay hiding to allow click events on results to fire
                                 setTimeout(() => setIsResultsOpen(false), 200);
