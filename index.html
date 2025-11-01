@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -67,7 +66,7 @@
         return unwrappedPoints;
       };
 
-      const FileUpload = ({ onFileUpload, setError }) => {
+      const FileUpload = ({ slotLabel, onFileUpload, fileName, onReset, setError }) => {
         const handleFileChange = (event) => {
           setError(null);
           const files = event.target.files;
@@ -90,11 +89,22 @@
           }
         };
 
+        if (fileName) {
+            return (
+                <div className="relative w-full rounded-lg border-2 border-green-300 p-6 text-center bg-green-50">
+                    <h3 className="text-lg font-bold text-gray-800">{slotLabel}</h3>
+                    <p className="mt-2 text-sm font-medium text-green-800 truncate" title={fileName}>{fileName}</p>
+                    <button onClick={onReset} className="absolute top-2 right-2 text-2xl font-bold text-gray-400 hover:text-danger">&times;</button>
+                </div>
+            )
+        }
+
         return (
-          <div className="w-full max-w-2xl mx-auto">
+          <div className="w-full mx-auto">
+            <h3 className="text-lg font-bold text-gray-800 mb-2 text-center">{slotLabel}</h3>
             <label
-              htmlFor="file-upload"
-              className="relative block w-full h-64 rounded-lg border-2 border-dashed border-gray-300 p-12 text-center hover:border-primary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/50 cursor-pointer bg-gray-100 transition-colors"
+              htmlFor={`file-upload-${slotLabel}`}
+              className="relative block w-full h-56 rounded-lg border-2 border-dashed border-gray-300 p-12 text-center hover:border-primary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/50 cursor-pointer bg-gray-100 transition-colors"
               onDragOver={handleDragOver}
               onDrop={handleDrop}
             >
@@ -107,12 +117,11 @@
                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
               </svg>
               <span className="mt-2 block text-sm font-medium text-gray-600">
-                Drag and drop <span className="text-primary">.zip</span> or <span className="text-primary">.json</span> files
+                Drop <span className="text-primary">.zip</span> or <span className="text-primary">.json</span> file
               </span>
               <span className="mt-1 block text-xs text-gray-500">or click to browse</span>
               <input
-                id="file-upload"
-                name="file-upload"
+                id={`file-upload-${slotLabel}`}
                 type="file"
                 multiple
                 accept=".zip,.json,application/zip,application/x-zip-compressed,application/json"
@@ -205,7 +214,7 @@
                         <div className="text-xs font-mono text-gray-500">P{port.port_number}</div>
                     </div>
 
-                    <LanPortIcon className="w-8 h-8 sm:w-10 sm:h-10 my-1"/>
+                    <LanPortIcon className="w-10 h-10 sm:w-12 sm:h-12 my-1"/>
                     
                     <div className="text-sm font-semibold">{isMultiVlan ? 'VLANs' : 'VLAN'} {vlanListString}</div>
 
@@ -485,7 +494,6 @@
                 {keyInfo.length > 0 && (
                     <div className="bg-gradient-to-br from-blue-100 to-gray-50 rounded-lg p-6 shadow-sm border border-primary/50">
                         <h3 className="text-xl font-bold text-primary mb-4 flex items-center gap-x-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v1h2a1 1 0 011 1v3a1 1 0 01-1 1h-2v1a2 2 0 01-2-2H7a2 2 0 01-2-2v-1H3a1 1 0 01-1-1V7a1 1 0 011-1h2V5z" /></svg>
                             Key Information
                         </h3>
                         <dl className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3">
@@ -532,50 +540,8 @@
             </div>
         );
       };
-      
-      const ViewSwitcher = ({ currentView, setCurrentView, lanAvailable, optAvailable, constellationAvailable }) => {
-        const buttonBaseClasses = "font-semibold py-2 px-4 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-50 flex items-center";
-        const activeClasses = "bg-primary text-white shadow-md";
-        const inactiveClasses = "bg-white hover:bg-gray-100 text-gray-700 border border-gray-300";
-        const disabledClasses = "bg-gray-200 text-gray-400 cursor-not-allowed";
 
-        const Checkmark = () => (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500 ml-2" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-          </svg>
-        );
-
-        return (
-          <div className="flex flex-wrap justify-center items-center gap-4 mb-8">
-            <button
-              onClick={() => setCurrentView('lan')}
-              disabled={!lanAvailable}
-              className={`${buttonBaseClasses} ${lanAvailable ? (currentView === 'lan' ? activeClasses : inactiveClasses) : disabledClasses}`}
-            >
-              TERMINAL_LAN_OPT
-              {lanAvailable && <Checkmark />}
-            </button>
-            <button
-              onClick={() => setCurrentView('opt')}
-              disabled={!optAvailable}
-              className={`${buttonBaseClasses} ${optAvailable ? (currentView === 'opt' ? activeClasses : inactiveClasses) : disabledClasses}`}
-            >
-              TERMINAL_OPT
-              {optAvailable && <Checkmark />}
-            </button>
-            <button
-              onClick={() => setCurrentView('constellation')}
-              disabled={!constellationAvailable}
-              className={`${buttonBaseClasses} ${constellationAvailable ? (currentView === 'constellation' ? activeClasses : inactiveClasses) : disabledClasses}`}
-            >
-              CONSTELLATION_OPT
-              {constellationAvailable && <Checkmark />}
-            </button>
-          </div>
-        );
-      };
-
-      const ConstellationVisualizer = ({ config }) => {
+      const ConstellationVisualizer = ({ config, formatLongitude }) => {
         const [selectedLongitude, setSelectedLongitude] = useState('');
         const [selectedBeamId, setSelectedBeamId] = useState(null);
         
@@ -745,12 +711,6 @@
         
         const selectedGroup = satelliteGroups[selectedLongitude];
         const selectedBeam = beamsDataRef.current[selectedBeamId] || null;
-        
-        const formatLongitude = (lon) => {
-            if (typeof lon !== 'number') return '';
-            const direction = lon >= 0 ? 'E' : 'W';
-            return `${Math.abs(lon).toFixed(1)}° ${direction}`;
-        };
 
         return (
             <div className="space-y-6">
@@ -817,14 +777,283 @@
         );
       };
 
+      const deepSortObject = (obj) => {
+        if (typeof obj !== 'object' || obj === null) {
+          return obj;
+        }
+
+        if (Array.isArray(obj)) {
+          // First, recursively sort the elements of the array
+          const sortedArray = obj.map(deepSortObject);
+          
+          // Then, if it's an array of objects, try to sort the array itself
+          if (sortedArray.length > 0 && typeof sortedArray[0] === 'object' && sortedArray[0] !== null) {
+            // Common keys to identify objects in an array
+            const keyCandidates = ['id', 'vid', 'port_number', 'satellite_id', 'beam_id', 'terminal_vid'];
+            
+            // Find the first candidate key that exists in ALL objects of the array
+            const sortKey = keyCandidates.find(key => 
+              sortedArray.every(item => item && typeof item === 'object' && item.hasOwnProperty(key))
+            );
+            
+            if (sortKey) {
+              sortedArray.sort((a, b) => {
+                // Handle numeric or string comparison
+                if (a[sortKey] < b[sortKey]) return -1;
+                if (a[sortKey] > b[sortKey]) return 1;
+                return 0;
+              });
+            }
+          }
+          return sortedArray;
+        }
+
+        // For objects, sort by keys
+        return Object.keys(obj).sort().reduce((result, key) => {
+          result[key] = deepSortObject(obj[key]);
+          return result;
+        }, {});
+      };
+
+      const deepDiff = (obj1, obj2, path = '') => {
+        const diff = [];
+        const allKeys = new Set([...Object.keys(obj1 || {}), ...Object.keys(obj2 || {})]);
+      
+        allKeys.forEach(key => {
+          const currentPath = path ? `${path}.${key}` : key;
+          const val1 = obj1 ? obj1[key] : undefined;
+          const val2 = obj2 ? obj2[key] : undefined;
+      
+          if (JSON.stringify(val1) === JSON.stringify(val2)) return;
+      
+          if (val1 === undefined) {
+            diff.push({ type: 'ADDED', path: currentPath, value: val2 });
+          } else if (val2 === undefined) {
+            diff.push({ type: 'REMOVED', path: currentPath, value: val1 });
+          } else if (typeof val1 === 'object' && val1 !== null && typeof val2 === 'object' && val2 !== null && !Array.isArray(val1) && !Array.isArray(val2)) {
+            diff.push(...deepDiff(val1, val2, currentPath));
+          } else {
+            diff.push({ type: 'MODIFIED', path: currentPath, oldValue: val1, newValue: val2 });
+          }
+        });
+      
+        return diff;
+      };
+      
+      const DiffValue = ({ value }) => (
+        <pre className="text-xs p-1 rounded-md bg-gray-100 whitespace-pre-wrap break-all">{JSON.stringify(value, null, 2)}</pre>
+      );
+      
+      const ComparisonView = ({ configA, configB, configType }) => {
+        const differences = useMemo(() => deepDiff(configA, configB), [configA, configB]);
+      
+        if (differences.length === 0) {
+          return (
+            <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-md" role="alert">
+              <p className="font-bold">No Differences Found</p>
+              <p>The two {configType} configurations are identical.</p>
+            </div>
+          );
+        }
+      
+        return (
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <h3 className="text-xl font-bold text-primary mb-4">Configuration Differences</h3>
+            <div className="space-y-4">
+              {differences.map((diff, index) => (
+                <div key={index} className="p-3 rounded-lg border">
+                  <strong className="text-sm font-mono text-gray-700 break-all">{diff.path}</strong>
+                  {diff.type === 'MODIFIED' && (
+                    <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-red-600 font-semibold mb-1">A (Old Value)</p>
+                        <div className="border border-red-200 rounded-md p-2"><DiffValue value={diff.oldValue} /></div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-green-600 font-semibold mb-1">B (New Value)</p>
+                         <div className="border border-green-200 rounded-md p-2"><DiffValue value={diff.newValue} /></div>
+                      </div>
+                    </div>
+                  )}
+                  {diff.type === 'ADDED' && (
+                     <div className="mt-2">
+                        <p className="text-xs text-green-600 font-semibold mb-1">Added in B</p>
+                        <div className="border border-green-200 rounded-md p-2"><DiffValue value={diff.value} /></div>
+                    </div>
+                  )}
+                  {diff.type === 'REMOVED' && (
+                    <div className="mt-2">
+                        <p className="text-xs text-red-600 font-semibold mb-1">Removed from B</p>
+                        <div className="border border-red-200 rounded-md p-2"><DiffValue value={diff.value} /></div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      };
+
+      const ConstellationComparison = ({ configA, configB, formatLongitude }) => {
+          const satellitesA = useMemo(() => new Map((configA?.CONSTELLATION?.SATELLITES || []).map(s => [s.satellite_id, s])), [configA]);
+          const satellitesB = useMemo(() => new Map((configB?.CONSTELLATION?.SATELLITES || []).map(s => [s.satellite_id, s])), [configB]);
+          
+          const comparison = useMemo(() => {
+              if (!configA || !configB) return null;
+      
+              const added = [...satellitesB.keys()].filter(id => !satellitesA.has(id)).map(id => satellitesB.get(id));
+              const removed = [...satellitesA.keys()].filter(id => !satellitesB.has(id)).map(id => satellitesA.get(id));
+              const commonIds = [...satellitesA.keys()].filter(id => satellitesB.has(id));
+      
+              const modified = commonIds.map(id => {
+                  const satA = satellitesA.get(id);
+                  const satB = satellitesB.get(id);
+                  const carrierKey = c => `${c.beam_id}-${c.center_freq}-${c.polarization}-${c.symbol_rate}`;
+                  
+                  const carriersA = new Map((satA.CARRIER || []).map(c => [carrierKey(c), c]));
+                  const carriersB = new Map((satB.CARRIER || []).map(c => [carrierKey(c), c]));
+      
+                  const carriersAdded = [...carriersB.keys()].filter(k => !carriersA.has(k)).map(k => carriersB.get(k));
+                  const carriersRemoved = [...carriersA.keys()].filter(k => !carriersB.has(k)).map(k => carriersA.get(k));
+      
+                  const satDiff = deepDiff(satA, satB);
+                  const rootChanges = satDiff.filter(d => !d.path.startsWith('CARRIER') && !d.path.startsWith('BEAM'));
+
+                  if (carriersAdded.length > 0 || carriersRemoved.length > 0 || rootChanges.length > 0) {
+                      return { satellite_id: id, added: carriersAdded, removed: carriersRemoved, changes: rootChanges };
+                  }
+                  return null;
+              }).filter(Boolean);
+      
+              return { added, removed, modified };
+          }, [configA, configB, satellitesA, satellitesB]);
+      
+          if (!comparison || (comparison.added.length === 0 && comparison.removed.length === 0 && comparison.modified.length === 0)) {
+               return (
+                  <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-md" role="alert">
+                    <p className="font-bold">No Differences Found</p>
+                    <p>The two CONSTELLATION_OPT configurations are identical.</p>
+                  </div>
+              );
+          }
+      
+          const renderCarrier = (carrier) => (
+             <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1 text-xs font-mono">
+                <span>Beam: {carrier.beam_id}</span>
+                <span>{carrier.polarization}</span>
+                <span>{(carrier.center_freq/1000).toFixed(2)} KHz</span>
+                <span>{carrier.symbol_rate}</span>
+             </div>
+          );
+      
+          return (
+              <div className="space-y-6">
+                  {comparison.added.length > 0 && (
+                      <CollapsibleCard title="Added Satellites" defaultOpen={true}>
+                          <div className="space-y-2">
+                              {comparison.added.map(sat => <div key={sat.satellite_id} className="p-2 bg-green-50 border border-green-200 rounded">{sat.satellite_id} ({formatLongitude(sat.longitude)})</div>)}
+                          </div>
+                      </CollapsibleCard>
+                  )}
+                   {comparison.removed.length > 0 && (
+                      <CollapsibleCard title="Removed Satellites" defaultOpen={true}>
+                           <div className="space-y-2">
+                              {comparison.removed.map(sat => <div key={sat.satellite_id} className="p-2 bg-red-50 border border-red-200 rounded">{sat.satellite_id} ({formatLongitude(sat.longitude)})</div>)}
+                          </div>
+                      </CollapsibleCard>
+                  )}
+                   {comparison.modified.length > 0 && (
+                      <CollapsibleCard title="Modified Satellites" defaultOpen={true}>
+                           <div className="space-y-4">
+                              {comparison.modified.map(mod => {
+                                  const sat = satellitesA.get(mod.satellite_id) || satellitesB.get(mod.satellite_id);
+                                  return (
+                                      <div key={mod.satellite_id}>
+                                          <h4 className="font-bold text-gray-800">{mod.satellite_id} {sat ? `(${formatLongitude(sat.longitude)})` : ''}</h4>
+                                          {mod.changes.length > 0 && (
+                                            <div className="mt-2 text-sm">
+                                                {mod.changes.map(change => (
+                                                    <div key={change.path} className="flex gap-2 p-1 bg-yellow-50 border border-yellow-200 rounded">
+                                                        <span className="font-semibold text-yellow-800">{change.path}:</span> 
+                                                        <span className="text-red-600 line-through">{JSON.stringify(change.oldValue)}</span>
+                                                        <span>&rarr;</span>
+                                                        <span className="text-green-600">{JSON.stringify(change.newValue)}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                          )}
+                                          {mod.added.length > 0 && (
+                                              <div className="mt-2">
+                                                  <p className="text-sm font-semibold text-green-700">Added Carriers:</p>
+                                                  <div className="pl-4 space-y-1">{mod.added.map((c, i) => <div key={i} className="p-1 bg-green-50 rounded border border-green-200">{renderCarrier(c)}</div>)}</div>
+                                              </div>
+                                          )}
+                                          {mod.removed.length > 0 && (
+                                               <div className="mt-2">
+                                                  <p className="text-sm font-semibold text-red-700">Removed Carriers:</p>
+                                                  <div className="pl-4 space-y-1">{mod.removed.map((c, i) => <div key={i} className="p-1 bg-red-50 rounded border border-red-200">{renderCarrier(c)}</div>)}</div>
+                                              </div>
+                                          )}
+                                      </div>
+                                  );
+                              })}
+                          </div>
+                      </CollapsibleCard>
+                  )}
+              </div>
+          );
+      };
+      
+      const LanComparisonView = ({ configA, configB }) => {
+        const differences = useMemo(() => deepDiff(configA, configB), [configA, configB]);
+
+        if (differences.length === 0) {
+          return (
+            <div>
+              <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-md mb-6" role="alert">
+                <p className="font-bold">No Differences Found</p>
+                <p>The two TERMINAL_LAN_OPT configurations are identical.</p>
+              </div>
+              <ModemSchematic config={configA} />
+            </div>
+          );
+        }
+
+        return (
+          <div className="space-y-8">
+            <div>
+              <div className="flex items-center gap-4 mb-4">
+                <h3 className="text-2xl font-bold text-gray-800">Configuration A</h3>
+                <span className="text-sm font-medium text-red-600 bg-red-100 px-2 py-1 rounded-full">Old Value</span>
+              </div>
+              <ModemSchematic config={configA} />
+            </div>
+            
+            <div className="border-t border-gray-200 my-8"></div>
+
+            <div>
+              <div className="flex items-center gap-4 mb-4">
+                  <h3 className="text-2xl font-bold text-gray-800">Configuration B</h3>
+                  <span className="text-sm font-medium text-green-600 bg-green-100 px-2 py-1 rounded-full">New Value</span>
+              </div>
+              <ModemSchematic config={configB} />
+            </div>
+          </div>
+        );
+      };
+
       const App = () => {
-        const [lanConfig, setLanConfig] = useState(null);
-        const [optConfig, setOptConfig] = useState(null);
-        const [constellationConfig, setConstellationConfig] = useState(null);
-        const [fileName, setFileName] = useState('');
+        const [configSetA, setConfigSetA] = useState({ lan: null, opt: null, constellation: null, fileName: '' });
+        const [configSetB, setConfigSetB] = useState({ lan: null, opt: null, constellation: null, fileName: '' });
         const [error, setError] = useState(null);
         const [isLoading, setIsLoading] = useState(false);
-        const [currentView, setCurrentView] = useState('lan');
+        const [currentView, setCurrentView] = useState('upload'); // e.g., 'lanA', 'lanCompare'
+
+        const formatLongitude = (lon) => {
+            if (typeof lon !== 'number') return '';
+            const direction = lon >= 0 ? 'E' : 'W';
+            return `${Math.abs(lon).toFixed(1)}° ${direction}`;
+        };
 
         const unwrapJson = (jsonObject) => {
             const keys = Object.keys(jsonObject);
@@ -834,16 +1063,15 @@
             return jsonObject;
         };
 
-        const handleFileUpload = useCallback(async (files) => {
+        const handleFileUpload = useCallback(async (files, slot) => {
           setIsLoading(true);
           setError(null);
 
-          let newLanConfig = lanConfig;
-          let newOptConfig = optConfig;
-          let newConstellationConfig = constellationConfig;
-          let newFileNames = fileName ? fileName.split(', ').filter(Boolean) : [];
-          let viewToFocus = currentView;
-          let filesWereProcessed = false;
+          const setConfig = slot === 'A' ? setConfigSetA : setConfigSetB;
+          const currentConfig = slot === 'A' ? configSetA : configSetB;
+          
+          let newConfig = { ...currentConfig };
+          let newFileNames = currentConfig.fileName ? currentConfig.fileName.split(', ').filter(Boolean) : [];
 
           for (const file of files) {
               if (newFileNames.includes(file.name)) continue;
@@ -852,102 +1080,183 @@
               const isJson = file.name.toLowerCase().endsWith('.json') || file.type.includes('json');
 
               if (isZip) {
-                  filesWereProcessed = true;
                   newFileNames.push(file.name);
                   try {
                       const zip = await JSZip.loadAsync(file);
                       
                       const lanFile = zip.file(/terminal_lan_opt\.json/i)[0];
-                      if (lanFile) {
-                          const lanJsonText = await lanFile.async("string");
-                          newLanConfig = unwrapJson(JSON.parse(lanJsonText));
-                          viewToFocus = 'lan';
-                      }
+                      if (lanFile) newConfig.lan = deepSortObject(unwrapJson(JSON.parse(await lanFile.async("string"))));
 
                       const optFile = zip.file(/terminal_opt\.json/i)[0];
-                      if (optFile) {
-                          const optJsonText = await optFile.async("string");
-                          newOptConfig = unwrapJson(JSON.parse(optJsonText));
-                          if (viewToFocus !== 'lan') viewToFocus = 'opt';
-                      }
+                      if (optFile) newConfig.opt = deepSortObject(unwrapJson(JSON.parse(await optFile.async("string"))));
 
-                      const constellationFile = zip.file(/constellation_opt\.json/i)[0];
-                      if (constellationFile) {
-                          const constellationJsonText = await constellationFile.async("string");
-                          newConstellationConfig = JSON.parse(constellationJsonText);
-                          if (!['lan', 'opt'].includes(viewToFocus)) viewToFocus = 'constellation';
-                      }
+                      const constFile = zip.file(/constellation_opt\.json/i)[0];
+                      if (constFile) newConfig.constellation = deepSortObject(JSON.parse(await constFile.async("string")));
                       
-                      if (!lanFile && !optFile && !constellationFile) {
-                          throw new Error("No valid configuration files found in the zip archive.");
-                      }
                   } catch (err) {
-                      const message = err instanceof Error ? err.message : 'Unknown error';
-                      setError(prev => prev ? `${prev}\nFailed to process ${file.name}: ${message}` : `Failed to process ${file.name}: ${message}`);
+                      setError(prev => `${prev ? prev + '\n' : ''}Failed to process ${file.name}: ${err.message}`);
                       newFileNames = newFileNames.filter(name => name !== file.name);
                   }
               } else if (isJson) {
-                  filesWereProcessed = true;
                   newFileNames.push(file.name);
                   try {
                       const jsonText = await file.text();
                       const parsedJson = JSON.parse(jsonText);
+                      const sortedJson = deepSortObject(parsedJson);
 
-                      if (parsedJson?.CONSTELLATION?.SATELLITES) {
-                          newConstellationConfig = parsedJson;
-                          viewToFocus = 'constellation';
+                      if (sortedJson?.CONSTELLATION?.SATELLITES) {
+                          newConfig.constellation = sortedJson;
                       } else {
-                          const configData = unwrapJson(parsedJson);
+                          const configData = unwrapJson(sortedJson);
                           const type = configData?.NMS?.type;
                           
                           if (type === 'TERMINAL_LAN_OPT' || (configData?.SWITCH_PORT && configData?.VLAN_CONFIGURATIONS)) {
-                              newLanConfig = configData;
-                              viewToFocus = 'lan';
-                          } else { // Catches TERMINAL_OPT via type, or falls back to assuming OPT
-                              newOptConfig = configData;
-                              if (!['lan', 'constellation'].includes(viewToFocus)) viewToFocus = 'opt';
+                              newConfig.lan = configData;
+                          } else { 
+                              newConfig.opt = configData;
                           }
                       }
                   } catch (err) {
-                      const message = err instanceof Error ? err.message : 'Unknown error';
-                      setError(prev => prev ? `${prev}\nFailed to process ${file.name}: ${message}` : `Failed to process ${file.name}: ${message}`);
-                      newFileNames = newFileNames.filter(name => name !== file.name);
+                       setError(prev => `${prev ? prev + '\n' : ''}Failed to process ${file.name}: ${err.message}`);
+                       newFileNames = newFileNames.filter(name => name !== file.name);
                   }
               }
           }
           
-          setLanConfig(newLanConfig);
-          setOptConfig(newOptConfig);
-          setConstellationConfig(newConstellationConfig);
-          setFileName(newFileNames.join(', '));
-          
-          const hasCurrentData = (view) => {
-            if(view === 'lan') return !!newLanConfig;
-            if(view === 'opt') return !!newOptConfig;
-            if(view === 'constellation') return !!newConstellationConfig;
-            return false;
-          }
-          
-          if (!hasCurrentData(currentView) || (viewToFocus !== currentView && hasCurrentData(viewToFocus))) {
-             setCurrentView(viewToFocus);
-          }
-
-          if (!filesWereProcessed && files.length > 0) {
-              setError("Unsupported file type. Please upload .zip or .json files.");
-          }
-
+          newConfig.fileName = newFileNames.join(', ');
+          setConfig(newConfig);
           setIsLoading(false);
-        }, [lanConfig, optConfig, constellationConfig, fileName, currentView]);
+          
+          if (currentView === 'upload') {
+              if (newConfig.lan) setCurrentView('lanA');
+              else if (newConfig.opt) setCurrentView('optA');
+              else if (newConfig.constellation) setCurrentView('constellationA');
+          }
 
-        const handleReset = () => {
-          setLanConfig(null);
-          setOptConfig(null);
-          setConstellationConfig(null);
-          setFileName('');
-          setError(null);
+        }, [configSetA, configSetB, currentView]);
+
+        const handleReset = (slot) => {
+            const emptyState = { lan: null, opt: null, constellation: null, fileName: '' };
+            if (slot === 'A') {
+              setConfigSetA(emptyState);
+              if (currentView.endsWith('A') || (currentView.endsWith('Compare') && !configSetB.fileName)) {
+                  setCurrentView(configSetB.fileName ? 'lanB' : 'upload');
+              }
+            } else if (slot === 'B') {
+              setConfigSetB(emptyState);
+              if (currentView.endsWith('B') || (currentView.endsWith('Compare') && !configSetA.fileName)) {
+                  setCurrentView(configSetA.fileName ? 'lanA' : 'upload');
+              }
+            } else { // 'all'
+                setConfigSetA(emptyState);
+                setConfigSetB(emptyState);
+                setCurrentView('upload');
+            }
         };
 
-        const hasConfig = lanConfig || optConfig || constellationConfig;
+        const hasAnyConfig = configSetA.fileName || configSetB.fileName;
+        const renderView = () => {
+            switch (currentView) {
+                case 'lanA': return configSetA.lan && <div><ModemSchematic config={configSetA.lan} /><div className="mt-8"><ConfigurationSummary config={configSetA.lan} /></div></div>;
+                case 'lanB': return configSetB.lan && <div><ModemSchematic config={configSetB.lan} /><div className="mt-8"><ConfigurationSummary config={configSetB.lan} /></div></div>;
+                case 'optA': return configSetA.opt && <OptConfigurationSummary config={configSetA.opt} />;
+                case 'optB': return configSetB.opt && <OptConfigurationSummary config={configSetB.opt} />;
+                case 'constellationA': return configSetA.constellation && <ConstellationVisualizer config={configSetA.constellation} formatLongitude={formatLongitude} />;
+                case 'constellationB': return configSetB.constellation && <ConstellationVisualizer config={configSetB.constellation} formatLongitude={formatLongitude} />;
+                case 'lanCompare': return <LanComparisonView configA={configSetA.lan} configB={configSetB.lan} />;
+                case 'optCompare': return <ComparisonView configA={configSetA.opt} configB={configSetB.opt} configType="TERMINAL_OPT" />;
+                case 'constellationCompare': return <ConstellationComparison configA={configSetA.constellation} configB={configSetB.constellation} formatLongitude={formatLongitude} />;
+                default: return null;
+            }
+        };
+
+        const ViewTabs = () => {
+            const tabs = [
+                { id: 'A', label: 'Config A' },
+                { id: 'B', label: 'Config B' },
+                { id: 'Compare', label: 'Compare' },
+            ];
+            
+            const activeTab = useMemo(() => {
+                if (currentView.endsWith('Compare')) return 'Compare';
+                if (currentView.endsWith('B')) return 'B';
+                return 'A';
+            }, [currentView]);
+        
+            const configTypes = [
+                { id: 'lan', label: 'TERMINAL_LAN_OPT' },
+                { id: 'opt', label: 'TERMINAL_OPT' },
+                { id: 'constellation', label: 'Constellation' },
+            ];
+        
+            const handleTabClick = (tabId) => {
+                const currentConfigTypeMatch = currentView.match(/^(lan|opt|constellation)/);
+                const currentConfigType = currentConfigTypeMatch ? currentConfigTypeMatch[0] : 'lan';
+                
+                const configTypesInOrder = ['lan', 'opt', 'constellation'];
+                const typesToCheck = [currentConfigType, ...configTypesInOrder.filter(t => t !== currentConfigType)];
+
+                for (const type of typesToCheck) {
+                    if (tabId === 'A' && configSetA[type]) {
+                        setCurrentView(`${type}A`);
+                        return;
+                    }
+                    if (tabId === 'B' && configSetB[type]) {
+                        setCurrentView(`${type}B`);
+                        return;
+                    }
+                    if (tabId === 'Compare' && configSetA[type] && configSetB[type]) {
+                        setCurrentView(`${type}Compare`);
+                        return;
+                    }
+                }
+            };
+        
+            return (
+                <div className="w-full">
+                    <div className="border-b border-gray-200">
+                        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                            {tabs.map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => handleTabClick(tab.id)}
+                                    className={`${activeTab === tab.id ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </nav>
+                    </div>
+                    <div className="pt-6">
+                        <div className="flex flex-wrap gap-4">
+                            {configTypes.map(type => {
+                                const isAvailableA = !!configSetA[type.id];
+                                const isAvailableB = !!configSetB[type.id];
+                                const isCompare = activeTab === 'Compare';
+                                const isDisabled = isCompare ? !(isAvailableA && isAvailableB) : (activeTab === 'A' ? !isAvailableA : !isAvailableB);
+                                const targetView = `${type.id}${isCompare ? 'Compare' : activeTab}`;
+                                
+                                const isActive = currentView.toLowerCase() === targetView.toLowerCase();
+
+                                return (
+                                    <button
+                                        key={type.id + activeTab}
+                                        disabled={isDisabled}
+                                        onClick={() => setCurrentView(targetView)}
+                                        className={`font-semibold py-2 px-4 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-50 ${
+                                            isDisabled ? 'bg-gray-200 text-gray-400 cursor-not-allowed' :
+                                            isActive ? 'bg-primary text-white shadow-md' : 'bg-white hover:bg-gray-100 text-gray-700 border border-gray-300'
+                                        }`}
+                                    >
+                                        {type.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
 
         return (
           <div className="min-h-screen bg-white text-gray-800 p-4 sm:p-6 lg:p-8">
@@ -961,59 +1270,49 @@
 
               <main>
                 {isLoading && (
-                   <div className="text-center">
+                   <div className="text-center py-12">
                       <p className="text-lg text-primary animate-pulse">Parsing configuration...</p>
                    </div>
                 )}
 
-                {!isLoading && !hasConfig && (
+                {!isLoading && !hasAnyConfig && (
                   <div className="mt-12">
-                      <FileUpload onFileUpload={handleFileUpload} setError={setError} />
+                      <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                          <FileUpload slotLabel="Configuration A" onFileUpload={(files) => handleFileUpload(files, 'A')} setError={setError} />
+                          <FileUpload slotLabel="Configuration B" onFileUpload={(files) => handleFileUpload(files, 'B')} setError={setError} />
+                      </div>
                   </div>
                 )}
                 
                 {error && (
-                   <div className="mt-6 max-w-2xl mx-auto bg-red-100 border border-red-300 text-red-800 px-4 py-3 rounded-lg text-center" role="alert">
+                   <div className="mt-6 max-w-4xl mx-auto bg-red-100 border border-red-300 text-red-800 px-4 py-3 rounded-lg " role="alert">
                       <strong className="font-bold">Error: </strong>
-                      <span className="block sm:inline whitespace-pre-wrap">{error}</span>
+                      <pre className="mt-2 text-sm whitespace-pre-wrap">{error}</pre>
                   </div>
                 )}
 
-                {!isLoading && hasConfig && (
+                {!isLoading && hasAnyConfig && (
                   <div className="space-y-8">
-                    <div className="flex justify-between items-center bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                        <div>
-                            <h2 className="text-xl font-semibold">Loaded Configuration(s)</h2>
-                            <p className="text-sm text-gray-500 truncate max-w-md" title={fileName}>{fileName}</p>
+                    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm space-y-4">
+                        <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+                           <div className="flex-1 w-full"> <FileUpload slotLabel="Configuration A" fileName={configSetA.fileName} onReset={() => handleReset('A')} onFileUpload={(files) => handleFileUpload(files, 'A')} setError={setError}/></div>
+                           <div className="flex-1 w-full"> <FileUpload slotLabel="Configuration B" fileName={configSetB.fileName} onReset={() => handleReset('B')} onFileUpload={(files) => handleFileUpload(files, 'B')} setError={setError}/></div>
                         </div>
-                        <button
-                          onClick={handleReset}
-                          className="bg-primary text-white font-semibold py-2 px-4 rounded-md hover:bg-primary-hover transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white focus:ring-primary flex-shrink-0"
-                        >
-                          Load Other File(s)
-                        </button>
+                        <div className="text-center">
+                            <button
+                              onClick={() => handleReset('all')}
+                              className="bg-danger text-white font-semibold py-2 px-4 rounded-md hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white focus:ring-danger"
+                            >
+                              Reset All
+                            </button>
+                        </div>
                     </div>
                     
-                    <ViewSwitcher 
-                        currentView={currentView} 
-                        setCurrentView={setCurrentView} 
-                        lanAvailable={!!lanConfig} 
-                        optAvailable={!!optConfig} 
-                        constellationAvailable={!!constellationConfig}
-                    />
-
-                    {currentView === 'lan' && lanConfig && (
-                         <div className="space-y-8">
-                            <ModemSchematic config={lanConfig} />
-                            <ConfigurationSummary config={lanConfig} />
-                        </div>
-                    )}
-                    {currentView === 'opt' && optConfig && (
-                        <OptConfigurationSummary config={optConfig} />
-                    )}
-                    {currentView === 'constellation' && constellationConfig && (
-                        <ConstellationVisualizer config={constellationConfig} />
-                    )}
+                    <ViewTabs />
+                    
+                    <div className="mt-6">
+                      {renderView()}
+                    </div>
                   </div>
                 )}
               </main>
