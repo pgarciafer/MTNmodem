@@ -181,7 +181,7 @@
             
             const ipAddressesInfo = vlanList.map(vlanId => {
                 const vlanInfo = vlanConfigs.find(v => v.vid === vlanId);
-                const ip = vlanInfo?.IP_INTERFACAS?.[0]?.address || 'N/A';
+                const ip = vlanInfo?.IP_INTERFACES?.[0]?.address || 'N/A';
                 return { vlan: vlanId, ip };
             });
             const vlanListString = vlanList.join(', ');
