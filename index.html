@@ -181,7 +181,7 @@
             
             const ipAddressesInfo = vlanList.map(vlanId => {
                 const vlanInfo = vlanConfigs.find(v => v.vid === vlanId);
-                const ip = vlanInfo?.IP_INTERFACES?.[0]?.address || 'N/A';
+                const ip = vlanInfo?.IP_INTERFACAS?.[0]?.address || 'N/A';
                 return { vlan: vlanId, ip };
             });
             const vlanListString = vlanList.join(', ');
@@ -542,6 +542,8 @@
       };
 
       const ConstellationVisualizer = ({ config, formatLongitude }) => {
+        const [searchTerm, setSearchTerm] = useState('');
+        const [isResultsOpen, setIsResultsOpen] = useState(false);
         const [selectedLongitude, setSelectedLongitude] = useState('');
         const [selectedBeamId, setSelectedBeamId] = useState(null);
         
@@ -550,18 +552,28 @@
         const layersRef = useRef({});
 
         useEffect(() => {
-          if (!mapRef.current) {
-            mapRef.current = L.map('map', {
-                worldCopyJump: true
-            }).setView([0, 0], 2);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-              attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-              subdomains: 'abcd',
-              maxZoom: 20
-            }).addTo(mapRef.current);
-          }
+            if (!mapRef.current) {
+                mapRef.current = L.map('map', {
+                    worldCopyJump: true
+                }).setView([0, 0], 2);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                    subdomains: 'abcd',
+                    maxZoom: 20
+                }).addTo(mapRef.current);
+            }
         }, []);
-        
+
+        useEffect(() => {
+            if (mapRef.current) {
+                // When the view is shown or updated, the map container might need its size re-calculated.
+                // A short delay ensures the DOM has settled.
+                setTimeout(() => {
+                    mapRef.current.invalidateSize();
+                }, 100);
+            }
+        }); // No dependency array, runs on every render to catch layout changes
+
         const { satelliteGroups } = useMemo(() => {
             if (!config?.CONSTELLATION?.SATELLITES) return { satelliteGroups: {} };
             
@@ -599,6 +611,27 @@
             
             return { satelliteGroups: groups };
         }, [config]);
+
+        const filteredSatelliteGroups = useMemo(() => {
+            if (!searchTerm) {
+                return satelliteGroups;
+            }
+            const lowerCaseSearch = searchTerm.toLowerCase();
+            const filtered = {};
+
+            for (const lon in satelliteGroups) {
+                const group = satelliteGroups[lon];
+                const namesMatch = Array.from(group.names).some(name => name.toLowerCase().includes(lowerCaseSearch));
+                const lonString = String(lon);
+                const formattedLon = formatLongitude(parseFloat(lon)).toLowerCase();
+                const lonMatch = lonString.includes(lowerCaseSearch) || formattedLon.includes(lowerCaseSearch);
+
+                if (namesMatch || lonMatch) {
+                    filtered[lon] = group;
+                }
+            }
+            return filtered;
+        }, [searchTerm, satelliteGroups, formatLongitude]);
 
         useEffect(() => {
             const map = mapRef.current;
@@ -638,8 +671,9 @@
         
             const newLayers = {};
             Object.values(allBeams).forEach(beamData => {
-                const layers = [];
                 const style = { color: "#D97706", weight: 2, opacity: 0.8, fillColor: "#FBBF24", fillOpacity: 0.2 };
+                let originalGeometryLayer = null;
+                const allGeometries = [];
                 
                 (beamData.CONTOUR || []).forEach(contour => {
                     if (contour.type === 1 && contour.points) {
@@ -648,27 +682,28 @@
         
                         const antimeridianFixedPoints = handleAntimeridianCrossing(validPoints);
                         
-                        const addPolygonLayer = (points, shift) => {
-                            const shiftedPoints = points.map(p => [p[0], p[1] + shift]);
-                            return L.polygon(shiftedPoints, style);
-                        };
-                        layers.push(addPolygonLayer(antimeridianFixedPoints, 0));
-                        layers.push(addPolygonLayer(antimeridianFixedPoints, -360));
-                        layers.push(addPolygonLayer(antimeridianFixedPoints, 360));
+                        const createPolygon = (points, shift) => L.polygon(points.map(p => [p[0], p[1] + shift]), style);
+                        
+                        if (!originalGeometryLayer) originalGeometryLayer = createPolygon(antimeridianFixedPoints, 0);
+                        allGeometries.push(createPolygon(antimeridianFixedPoints, 0), createPolygon(antimeridianFixedPoints, -360), createPolygon(antimeridianFixedPoints, 360));
         
                     } else if (contour.type === 0 && contour.center && contour.radius) {
                         const center = [contour.center[0], contour.center[1]];
                         const radius = contour.radius * 1000;
                         if(radius > 0) {
-                            layers.push(L.circle(center, { ...style, radius }));
-                            layers.push(L.circle([center[0], center[1] - 360], { ...style, radius }));
-                            layers.push(L.circle([center[0], center[1] + 360], { ...style, radius }));
+                             const createCircle = (center, shift) => L.circle([center[0], center[1] + shift], { ...style, radius });
+                             if (!originalGeometryLayer) originalGeometryLayer = createCircle(center, 0);
+                             allGeometries.push(createCircle(center, 0), createCircle(center, -360), createCircle(center, 360));
                         }
                     }
                 });
                 
-                if (layers.length > 0) {
-                    newLayers[beamData.uniqueId] = L.featureGroup(layers);
+                if (allGeometries.length > 0) {
+                    const group = L.featureGroup(allGeometries);
+                    if (originalGeometryLayer) {
+                        group.originalBounds = originalGeometryLayer.getBounds();
+                    }
+                    newLayers[beamData.uniqueId] = group;
                 }
             });
             
@@ -693,42 +728,81 @@
     
             if (selectedLayer) {
                 selectedLayer.addTo(map);
-                try {
-                    const bounds = selectedLayer.getBounds();
-                    if (bounds.isValid()) {
-                        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 5 });
+                if (selectedLayer.originalBounds && selectedLayer.originalBounds.isValid()) {
+                    map.fitBounds(selectedLayer.originalBounds, { padding: [50, 50], maxZoom: 5 });
+                } else {
+                    try {
+                        const bounds = selectedLayer.getBounds();
+                        if (bounds.isValid()) {
+                            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 5 });
+                        }
+                    } catch(e) {
+                        console.error("Could not get bounds for layer", e);
                     }
-                } catch(e) {
-                    console.error("Could not get bounds for layer", e);
                 }
             }
         }, [selectedBeamId]);
 
-        const handleSatelliteChange = (e) => {
-          setSelectedLongitude(e.target.value);
-          setSelectedBeamId(null);
-        };
-        
         const selectedGroup = satelliteGroups[selectedLongitude];
         const selectedBeam = beamsDataRef.current[selectedBeamId] || null;
 
         return (
             <div className="space-y-6">
-                <div className="max-w-md">
-                    <label htmlFor="satellite-select" className="block text-sm font-medium text-gray-600 mb-2">Select Satellite Group</label>
-                    <select
-                        id="satellite-select"
-                        value={selectedLongitude}
-                        onChange={handleSatelliteChange}
-                        className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 bg-white text-gray-800 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md"
-                    >
-                        <option value="">-- Please choose a satellite --</option>
-                        {Object.entries(satelliteGroups).sort((a,b) => parseFloat(a[0]) - parseFloat(b[0])).map(([lon, group]) => (
-                            <option key={lon} value={lon}>
-                                {Array.from(group.names).join(' / ')} ({formatLongitude(parseFloat(lon))})
-                            </option>
-                        ))}
-                    </select>
+                 <div className="max-w-md space-y-2">
+                    <label htmlFor="satellite-search" className="block text-sm font-medium text-gray-600">Search Satellite</label>
+                     <div className="relative">
+                         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                              <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
+                              </svg>
+                         </div>
+                        <input
+                            type="text"
+                            id="satellite-search"
+                            autoComplete="off"
+                            value={searchTerm}
+                            onChange={(e) => {
+                                setSearchTerm(e.target.value);
+                                setSelectedLongitude('');
+                                setSelectedBeamId(null);
+                                setIsResultsOpen(true);
+                            }}
+                            onFocus={() => setIsResultsOpen(true)}
+                            onBlur={() => {
+                                // Delay hiding to allow click events on results to fire
+                                setTimeout(() => setIsResultsOpen(false), 200);
+                            }}
+                            placeholder="Search by name or longitude..."
+                            className="block w-full rounded-md border-gray-300 bg-white text-gray-800 pl-10 py-2 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                        />
+                        {isResultsOpen && (
+                            <div className="absolute z-10 mt-1 w-full max-h-60 overflow-y-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                                {Object.entries(filteredSatelliteGroups).length > 0 ? (
+                                    Object.entries(filteredSatelliteGroups)
+                                        .sort((a,b) => parseFloat(a[0]) - parseFloat(b[0]))
+                                        .map(([lon, group]) => {
+                                            const displayText = `${Array.from(group.names).join(' / ')} (${formatLongitude(parseFloat(lon))})`;
+                                            return (
+                                                <button
+                                                    key={lon}
+                                                    onMouseDown={() => { // use onMouseDown to fire before onBlur
+                                                        setSelectedLongitude(lon);
+                                                        setSearchTerm(displayText);
+                                                        setIsResultsOpen(false);
+                                                        setSelectedBeamId(null);
+                                                    }}
+                                                    className="w-full text-left cursor-pointer select-none relative py-2 pl-3 pr-9 text-gray-900 hover:bg-primary hover:text-white"
+                                                >
+                                                    {displayText}
+                                                </button>
+                                            );
+                                        })
+                                ) : (
+                                    <div className="cursor-default select-none relative py-2 px-4 text-gray-700">No results found.</div>
+                                )}
+                            </div>
+                        )}
+                     </div>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
