@@ -1,0 +1,1041 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Modem Configuration Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+          "react/": "https://aistudiocdn.com/react@^19.2.0/",
+          "react": "https://aistudiocdn.com/react@^19.2.0"
+        }
+      }
+    </script>
+  </head>
+  <body class="bg-gray-900 text-gray-100">
+    <div id="root"></div>
+    <script type="text/babel" data-type="module">
+      import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+      import ReactDOM from 'react-dom/client';
+
+      // --- All components and logic are now in this script tag ---
+
+      const handleAntimeridianCrossing = (points) => {
+        if (!points || points.length < 2) return points;
+        
+        const unwrappedPoints = [[points[0][0], points[0][1]]];
+        
+        for (let i = 1; i < points.length; i++) {
+            const prevLon = unwrappedPoints[i-1][1];
+            const currentLat = points[i][0];
+            let currentLon = points[i][1];
+
+            if (prevLon - currentLon > 180) {
+                currentLon += 360;
+            } else if (currentLon - prevLon > 180) {
+                currentLon -= 360;
+            }
+            
+            unwrappedPoints.push([currentLat, currentLon]);
+        }
+        
+        return unwrappedPoints;
+      };
+
+      const FileUpload = ({ onFileUpload, setError }) => {
+        const handleFileChange = (event) => {
+          setError(null);
+          const files = event.target.files;
+          if (files && files.length > 0) {
+            onFileUpload(files);
+          }
+          event.target.value = '';
+        };
+
+        const handleDragOver = (event) => {
+          event.preventDefault();
+        };
+
+        const handleDrop = (event) => {
+          event.preventDefault();
+          setError(null);
+          const files = event.dataTransfer.files;
+          if (files && files.length > 0) {
+            onFileUpload(files);
+          }
+        };
+
+        return (
+          <div className="w-full max-w-2xl mx-auto">
+            <label
+              htmlFor="file-upload"
+              className="relative block w-full h-64 rounded-lg border-2 border-dashed border-gray-600 p-12 text-center hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cursor-pointer bg-gray-800 transition-colors"
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+            >
+              <svg
+                className="mx-auto h-12 w-12 text-gray-500"
+                stroke="currentColor"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+              </svg>
+              <span className="mt-2 block text-sm font-medium text-gray-400">
+                Drag and drop <span className="text-indigo-400">.zip</span> or <span className="text-indigo-400">.json</span> files
+              </span>
+              <span className="mt-1 block text-xs text-gray-500">or click to browse</span>
+              <input
+                id="file-upload"
+                name="file-upload"
+                type="file"
+                multiple
+                accept=".zip,.json,application/zip,application/x-zip-compressed,application/json"
+                className="sr-only"
+                onChange={handleFileChange}
+              />
+            </label>
+          </div>
+        );
+      };
+      
+      const vlanColorStyles = {
+        '1': {
+            bg: 'bg-green-500/20',
+            border: 'border-green-400',
+            text: 'text-green-300',
+            led: 'bg-green-400 shadow-[0_0_5px_1px_rgba(74,222,128,0.7)]',
+            hex: '#4ade80' // Corresponds to Tailwind's green-400
+        },
+        '900': {
+            bg: 'bg-sky-500/20',
+            border: 'border-sky-400',
+            text: 'text-sky-300',
+            led: 'bg-sky-400 shadow-[0_0_5px_1px_rgba(56,189,248,0.7)]',
+            hex: '#38bdf8' // Corresponds to Tailwind's sky-400
+        },
+        'default': {
+            bg: 'bg-gray-500/20',
+            border: 'border-gray-400',
+            text: 'text-gray-300',
+            led: 'bg-gray-400 shadow-[0_0_5px_1px_rgba(156,163,175,0.7)]',
+            hex: '#9ca3af' // Corresponds to Tailwind's gray-400
+        }
+      };
+
+      const LanPortIcon = ({ className }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 7.125A2.25 2.25 0 0 1 4.5 4.875h15A2.25 2.25 0 0 1 21.75 7.125v1.518a2.25 2.25 0 0 1-.659 1.591l-5.232 5.232a2.25 2.25 0 0 1-1.591.659h-3.439a2.25 2.25 0 0 1-1.591-.659L4.44 10.234A2.25 2.25 0 0 1 3.781 8.643V7.125ZM12 6.375v3.75m-2.25-3.75v3.75m4.5-3.75v3.75" />
+        </svg>
+      );
+
+      const ModemSchematic = ({ config }) => {
+        const ports = config.SWITCH_PORT;
+        const vlanConfigs = config.VLAN_CONFIGURATIONS;
+        const sortedPorts = [...ports].sort((a, b) => a.port_number - b.port_number);
+
+        const is8PortLayout = sortedPorts.length === 8;
+
+        const topRowPorts = is8PortLayout
+          ? sortedPorts.filter(p => p.port_number % 2 === 0)
+          : [];
+        const bottomRowPorts = is8PortLayout
+          ? sortedPorts.filter(p => p.port_number % 2 !== 0)
+          : sortedPorts;
+
+        const Port = ({ port }) => {
+            const vlanList = port.terminal_vid_list;
+            const isMultiVlan = vlanList.length > 1;
+            
+            const ipAddressesInfo = vlanList.map(vlanId => {
+                const vlanInfo = vlanConfigs.find(v => v.vid === vlanId);
+                const ip = vlanInfo?.IP_INTERFACES?.[0]?.address || 'N/A';
+                return { vlan: vlanId, ip };
+            });
+            const vlanListString = vlanList.join(', ');
+
+            let portStyle = {};
+            let portClasses = 'group relative rounded-lg p-2 border-2 text-center transition-all w-full flex flex-col justify-between items-center min-h-[6rem] hover:scale-105 hover:shadow-xl hover:border-sky-400';
+            let ledClasses = 'w-2 h-2 rounded-full animate-pulse';
+
+            if (isMultiVlan) {
+                const gradientColors = vlanList
+                    .map(vlan => vlanColorStyles[vlan]?.hex || vlanColorStyles.default.hex);
+                
+                portStyle.background = gradientColors.length > 1
+                    ? `linear-gradient(45deg, ${gradientColors.join(', ')})`
+                    : `solid ${gradientColors[0] || vlanColorStyles.default.hex}`;
+
+                portClasses += ' border-sky-400 text-gray-100'; // Use a consistent border for gradients
+                ledClasses += ' bg-white shadow-[0_0_5px_1px_rgba(255,255,255,0.7)]'; // Bright white LED for multi-vlan
+            } else {
+                const singleVlan = String(vlanList[0] || 'default');
+                const styles = vlanColorStyles[singleVlan] || vlanColorStyles.default;
+                portClasses += ` ${styles.bg} ${styles.border} ${styles.text} bg-black/20`;
+                ledClasses += ` ${styles.led}`;
+            }
+
+            return (
+                <div className={portClasses} style={portStyle}>
+                    <div className="w-full flex justify-between items-center">
+                        <div className={ledClasses}></div>
+                        <div className="text-xs font-mono text-gray-400">P{port.port_number}</div>
+                    </div>
+
+                    <LanPortIcon className="w-6 h-6 sm:w-8 sm:h-8 text-gray-500 my-1"/>
+                    
+                    <div className="text-sm font-semibold">{isMultiVlan ? 'VLANs' : 'VLAN'} {vlanListString}</div>
+
+                    {/* Tooltip */}
+                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-max max-w-xs bg-gray-900 text-white text-xs rounded-lg shadow-lg p-2 border border-gray-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10">
+                        <dl className="space-y-1">
+                          {ipAddressesInfo.map(({ vlan, ip }) => (
+                            <div key={vlan} className="flex justify-between items-start gap-4">
+                                <dt className="text-gray-400 flex-shrink-0">VLAN {vlan} IP:</dt>
+                                <dd className="font-semibold font-mono">{ip}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                        <div className="absolute left-1/2 -translate-x-1/2 bottom-[-4px] w-2 h-2 bg-gray-900 transform rotate-45 border-b border-r border-gray-700"></div>
+                    </div>
+                </div>
+            );
+        };
+
+        return (
+          <div className="bg-gray-800/50 rounded-lg p-6 shadow-lg border border-gray-700">
+            <h2 className="text-xl font-bold text-gray-200 mb-4">Modem Schematic</h2>
+            <div className="bg-gray-900 rounded-lg p-4 flex flex-col md:flex-row items-center gap-6">
+              <div className="flex-shrink-0 bg-black/20 p-4 rounded-md w-full md:w-40 text-center flex flex-col justify-center items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-gray-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 12H3" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.243 16.243L7.757 7.757" />
+                  </svg>
+                  <p className="text-lg font-semibold tracking-wider text-gray-200">MODEM</p>
+                  <p className="text-xs text-gray-400">LAN Interface</p>
+              </div>
+              <div className="flex-1 flex flex-col justify-center gap-2 md:gap-4 w-full">
+                {is8PortLayout && (
+                  <div className="grid grid-cols-4 gap-2 md:gap-4">
+                    {topRowPorts.map((port) => <Port key={port.port_number} port={port} />)}
+                  </div>
+                )}
+                <div className="grid grid-cols-4 gap-2 md:gap-4">
+                  {bottomRowPorts.map((port) => <Port key={port.port_number} port={port} />)}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      const DetailItem = ({ label, value, className = '' }) => (
+        <div className={`flex justify-between items-start py-2 border-b border-gray-700/50 ${className}`}>
+          <dt className="text-sm text-gray-400 truncate pr-2">{label}</dt>
+          <dd className="text-sm font-semibold text-gray-200 text-right">{value}</dd>
+        </div>
+      );
+
+      const StatusPill = ({ enabled }) => (
+          enabled ? 
+          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-500/20 text-green-300">Enabled</span> :
+          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-500/20 text-red-300">Disabled</span>
+      );
+
+      const DhcpDetails = ({ dhcpConfig }) => (
+          <>
+              <h4 className="font-semibold text-gray-300 mt-4 mb-2">DHCPv4 Configuration</h4>
+              <dl>
+                  <DetailItem label="Status" value={<StatusPill enabled={dhcpConfig.dhcp_enable === 1} />} />
+                  <DetailItem label="Gateway" value={<code className="text-sm">{dhcpConfig.dhcp_gateway_ip}</code>} />
+                  <DetailItem label="Subnet" value={<code className="text-sm">{dhcpConfig.dhcp_subnet}</code>} />
+                  <DetailItem label="Netmask" value={<code className="text-sm">{dhcpConfig.dhcp_netmask}</code>} />
+                  <DetailItem label="Lease Range" value={<code className="text-sm">{dhcpConfig.dhcp_lease_range}</code>} />
+                  <DetailItem label="Primary DNS" value={<code className="text-sm">{dhcpConfig.dhcp_primary_dns_address}</code>} />
+                  <DetailItem label="Secondary DNS" value={<code className="text-sm">{dhcpConfig.dhcp_secondary_dns_address}</code>} />
+              </dl>
+          </>
+      );
+
+      const VlanCard = ({ vlanConfig }) => (
+          <div className="bg-gray-800/50 rounded-lg p-6 shadow-md border border-gray-700">
+              <h3 className="text-lg font-bold text-indigo-400 mb-3">VLAN Configuration: <span className="text-white">{vlanConfig.vid}</span></h3>
+              
+              <h4 className="font-semibold text-gray-300 mb-2">IP Interfaces</h4>
+              {vlanConfig.IP_INTERFACES.map((iface, index) => (
+                  <div key={index} className="bg-gray-900/50 p-3 rounded-md mb-2">
+                      <dl>
+                          <DetailItem label="Interface" value={iface.interface} className="border-none py-1" />
+                          <DetailItem label="Address" value={<code className="text-sm">{iface.address}</code>} className="border-none py-1" />
+                          <DetailItem label="Netmask" value={<code className="text-sm">{iface.netmask}</code>} className="border-none py-1" />
+                          <DetailItem label="Gateway" value={<code className="text-sm">{iface.gateway}</code>} className="border-none py-1" />
+                      </dl>
+                  </div>
+              ))}
+              
+              {vlanConfig.DHCPV4 && <DhcpDetails dhcpConfig={vlanConfig.DHCPV4} />}
+          </div>
+      );
+
+      const ConfigurationSummary = ({ config }) => {
+        return (
+          <div className="space-y-6">
+             <div className="bg-gray-800/50 rounded-lg p-6 shadow-md border border-gray-700">
+               <h3 className="text-lg font-bold text-indigo-400 mb-3">General Information</h3>
+               <dl>
+                 <DetailItem label="Element Type" value={config.NMS.type} />
+                 <DetailItem label="Element ID" value={config.NMS.element_id} />
+                 <DetailItem label="Parent ID" value={config.NMS.element_parent_id} />
+                 <DetailItem label="L2 Switch Enabled" value={<StatusPill enabled={config.L2SW.enabled === 1} />} />
+               </dl>
+             </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {config.VLAN_CONFIGURATIONS.sort((a, b) => a.vid - b.vid).map((vlanConfig) => (
+                  <VlanCard key={vlanConfig.vid} vlanConfig={vlanConfig} />
+                ))}
+            </div>
+          </div>
+        );
+      };
+
+      const CollapsibleCard = ({ title, children, defaultOpen = false, className = '' }) => {
+        const [isOpen, setIsOpen] = useState(defaultOpen);
+
+        return (
+          <div className={`bg-gray-800/50 rounded-lg shadow-md border border-gray-700 ${className}`}>
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="w-full flex justify-between items-center p-4 text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-amber-500"
+              aria-expanded={isOpen}
+            >
+              <h3 className="text-lg font-bold text-amber-400">{title}</h3>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className={`h-6 w-6 transform transition-transform duration-200 text-gray-400 ${isOpen ? 'rotate-180' : ''}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {isOpen && (
+              <div className="p-4 pt-0">
+                <div className="border-t border-gray-700/50 pt-4">
+                  {children}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      };
+
+      const OptConfigurationSummary = ({ config }) => {
+        const [keyInfo, setKeyInfo] = useState([]);
+
+        useEffect(() => {
+            if (!config) return;
+
+            const findKeyInfo = (data) => {
+                const info = [];
+                 const searchTerms = {
+                    'Model': /(^|_)model(_| |)type$/i,
+                    'Serial Number': /(^|_)serial(_number|\s+number|)?$|sn$/i,
+                };
+
+                const traverse = (obj) => {
+                    if (obj === null || typeof obj !== 'object') return;
+
+                    for (const key in obj) {
+                        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                            const value = obj[key];
+                            
+                            for (const label in searchTerms) {
+                                if (searchTerms[label].test(key) && (typeof value === 'string' || typeof value === 'number') && value) {
+                                     if (!info.some(i => i.label === label)) {
+                                        info.push({ label, value: String(value) });
+                                    }
+                                }
+                            }
+
+                             if (key.toUpperCase() === 'AIM' && typeof value === 'object' && value !== null) {
+                                for (const aimKey in value) {
+                                    if (/ip|address/i.test(aimKey)) {
+                                        const addressValue = String(value[aimKey]);
+                                        const parts = addressValue.split(';').map(p => p.trim());
+                                        const ipPart = parts.find(p => /\d+\.\d+\d+\.\d+/.test(p));
+                                        const portPart = parts.find(p => /^\d+$/.test(p) && p !== ipPart && parseInt(p, 10) > 0);
+                                        if (ipPart) {
+                                            const finalValue = portPart ? `${ipPart}:${portPart}` : ipPart;
+                                            if (!info.some(i => i.label === 'AIM Address')) {
+                                               info.push({ label: 'AIM Address', value: finalValue });
+                                            }
+                                            break; 
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            if (typeof value === 'object') {
+                                traverse(value);
+                            }
+                        }
+                    }
+                };
+
+                traverse(data);
+                return info;
+            };
+            
+            const rawInfo = findKeyInfo(config);
+            const uniqueInfo = Array.from(new Map(rawInfo.map(item => [item.label, item])).values());
+                    
+            const modelInfo = uniqueInfo.find(item => item.label === 'Model');
+            const snInfo = uniqueInfo.find(item => item.label === 'Serial Number');
+            const otherInfo = uniqueInfo.filter(item => item.label !== 'Model' && item.label !== 'Serial Number');
+
+            const combinedInfo = [];
+             if (modelInfo && snInfo) {
+                combinedInfo.push({ label: 'Device', value: `${modelInfo.value} (SN: ${snInfo.value})` });
+            } else if (modelInfo) {
+                combinedInfo.push({ label: 'Device', value: modelInfo.value });
+            } else if (snInfo) {
+                 combinedInfo.push({label: 'Serial Number', value: snInfo.value });
+            }
+            
+            setKeyInfo([...combinedInfo, ...otherInfo]);
+        }, [config]);
+
+
+        if (!config || typeof config !== 'object' || Object.keys(config).length === 0) {
+            return (
+                <div className="bg-gray-800/50 rounded-lg p-6 shadow-md border border-gray-700 text-center">
+                    <h3 className="text-lg font-bold text-gray-400 mb-2">No Data to Display</h3>
+                    <p className="text-gray-500">The configuration file is empty or could not be parsed as a valid object.</p>
+                </div>
+            );
+        }
+
+        const renderValue = (value) => {
+            if (typeof value === 'boolean') return <StatusPill enabled={value} />;
+            if (value === null) return <code className="text-sm text-gray-400">null</code>;
+            if (Array.isArray(value)) {
+                if (value.every(item => typeof item !== 'object' || item === null)) {
+                    return <code className="text-sm break-all">{value.join(', ')}</code>;
+                }
+                return (
+                    <div className="space-y-2">
+                        {value.map((item, index) => (
+                            <div key={index} className="bg-gray-900/50 p-3 rounded-md">
+                                <pre className="text-xs text-gray-300 overflow-x-auto whitespace-pre-wrap break-all">
+                                    {JSON.stringify(item, null, 2)}
+                                </pre>
+                            </div>
+                        ))}
+                    </div>
+                );
+            }
+            if (typeof value === 'object') {
+                 return (
+                    <pre className="mt-1 text-left bg-gray-900/50 p-3 rounded-md overflow-x-auto text-xs text-gray-300 whitespace-pre-wrap break-all">
+                        {JSON.stringify(value, null, 2)}
+                    </pre>
+                );
+            }
+            return <code className="text-sm break-all">{String(value)}</code>;
+        };
+
+        const renderDetailItem = (key, value) => {
+            const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            const isBlock = typeof value === 'object' && value !== null;
+
+            if (isBlock) {
+                 return (
+                    <div key={key} className="py-2 border-b border-gray-700/50">
+                        <dt className="text-sm text-gray-400">{formattedKey}</dt>
+                        <dd className="mt-1">{renderValue(value)}</dd>
+                    </div>
+                 );
+            }
+            return <DetailItem key={key} label={formattedKey} value={renderValue(value)} />;
+        };
+
+        const entries = Object.entries(config);
+        const objectEntries = entries.filter(([, v]) => typeof v === 'object' && v !== null && !Array.isArray(v));
+        const arrayEntries = entries.filter(([, v]) => Array.isArray(v));
+        const primitiveEntries = entries.filter(([, v]) => typeof v !== 'object' || v === null);
+
+        return (
+            <div className="space-y-6">
+                {keyInfo.length > 0 && (
+                    <div className="bg-gradient-to-br from-indigo-800/50 to-gray-800/50 rounded-lg p-6 shadow-lg border border-indigo-600">
+                        <h3 className="text-xl font-bold text-indigo-300 mb-4 flex items-center gap-x-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v1h2a1 1 0 011 1v3a1 1 0 01-1 1h-2v1a2 2 0 01-2-2H7a2 2 0 01-2-2v-1H3a1 1 0 01-1-1V7a1 1 0 011-1h2V5z" /></svg>
+                            Key Information
+                        </h3>
+                        <dl className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3">
+                            {keyInfo.map(({ label, value }) => (
+                                <div key={label} className="flex flex-col">
+                                    <dt className="text-sm text-gray-400">{label}</dt>
+                                    <dd className="text-lg font-semibold text-gray-100 font-mono break-all">{value}</dd>
+                                </div>
+                            ))}
+                        </dl>
+                    </div>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {primitiveEntries.length > 0 && (
+                        <CollapsibleCard title="General Parameters" defaultOpen={true} className="md:col-span-1">
+                            <dl>
+                                {primitiveEntries.map(([key, value]) => renderDetailItem(key, value))}
+                            </dl>
+                        </CollapsibleCard>
+                    )}
+                    {objectEntries.map(([key, value]) => {
+                        const formattedTitle = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        return (
+                            <CollapsibleCard key={key} title={formattedTitle} className="md:col-span-1">
+                                <dl>
+                                    {Object.entries(value).map(([subKey, subValue]) => renderDetailItem(subKey, subValue))}
+                                </dl>
+                            </CollapsibleCard>
+                        );
+                    })}
+                </div>
+                {arrayEntries.length > 0 && (
+                     <div className="space-y-6">
+                         {arrayEntries.map(([key, value]) => {
+                             const formattedTitle = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                             return (
+                                <CollapsibleCard key={key} title={formattedTitle}>
+                                    {renderValue(value)}
+                                </CollapsibleCard>
+                             );
+                        })}
+                     </div>
+                )}
+            </div>
+        );
+      };
+      
+      const ViewSwitcher = ({ currentView, setCurrentView, lanAvailable, optAvailable, constellationAvailable }) => {
+        const buttonBaseClasses = "font-semibold py-2 px-4 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 flex items-center";
+        const activeClasses = "bg-indigo-600 text-white";
+        const inactiveClasses = "bg-gray-700 hover:bg-gray-600 text-gray-300";
+        const disabledClasses = "bg-gray-700/50 text-gray-500 cursor-not-allowed";
+
+        const Checkmark = () => (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-400 ml-2" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+        );
+
+        return (
+          <div className="flex flex-wrap justify-center items-center gap-4 mb-8">
+            <button
+              onClick={() => setCurrentView('lan')}
+              disabled={!lanAvailable}
+              className={`${buttonBaseClasses} ${lanAvailable ? (currentView === 'lan' ? activeClasses : inactiveClasses) : disabledClasses}`}
+            >
+              TERMINAL_LAN_OPT
+              {lanAvailable && <Checkmark />}
+            </button>
+            <button
+              onClick={() => setCurrentView('opt')}
+              disabled={!optAvailable}
+              className={`${buttonBaseClasses} ${optAvailable ? (currentView === 'opt' ? activeClasses : inactiveClasses) : disabledClasses}`}
+            >
+              TERMINAL_OPT
+              {optAvailable && <Checkmark />}
+            </button>
+            <button
+              onClick={() => setCurrentView('constellation')}
+              disabled={!constellationAvailable}
+              className={`${buttonBaseClasses} ${constellationAvailable ? (currentView === 'constellation' ? activeClasses : inactiveClasses) : disabledClasses}`}
+            >
+              CONSTELLATION_OPT
+              {constellationAvailable && <Checkmark />}
+            </button>
+          </div>
+        );
+      };
+
+      const ConstellationVisualizer = ({ config }) => {
+        const [selectedLongitude, setSelectedLongitude] = useState('');
+        const [selectedBeamId, setSelectedBeamId] = useState(null);
+        
+        const mapRef = useRef(null);
+        const beamsDataRef = useRef({});
+        const layersRef = useRef({});
+
+        useEffect(() => {
+          if (!mapRef.current) {
+            mapRef.current = L.map('map', {
+                worldCopyJump: true
+            }).setView([0, 0], 2);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+              attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+              subdomains: 'abcd',
+              maxZoom: 20
+            }).addTo(mapRef.current);
+          }
+        }, []);
+        
+        const { satelliteGroups } = useMemo(() => {
+            if (!config?.CONSTELLATION?.SATELLITES) return { satelliteGroups: {} };
+            
+            const filteredSatellites = config.CONSTELLATION.SATELLITES.filter(s => 
+                s.satellite_id && !String(s.satellite_id).toLowerCase().startsWith('test')
+            );
+
+            const groups = filteredSatellites.reduce((acc, satellite) => {
+                const lon = satellite.longitude;
+                if (!acc[lon]) {
+                    acc[lon] = { names: new Set(), beams: [] };
+                }
+                acc[lon].names.add(satellite.satellite_id);
+
+                if (satellite.BEAM && satellite.CARRIER) {
+                    satellite.BEAM.forEach(beam => {
+                        const carriers = satellite.CARRIER.filter(c => c.beam_id === beam.beam_id);
+                        if (carriers.length > 0) {
+                            acc[lon].beams.push({
+                                ...beam,
+                                uniqueId: `${satellite.satellite_id}-${beam.beam_id}`,
+                                satellite_name: satellite.satellite_id,
+                                satellite_longitude: satellite.longitude,
+                                carriers: carriers,
+                            });
+                        }
+                    });
+                }
+                return acc;
+            }, {});
+
+            Object.values(groups).forEach(group => {
+                group.beams.sort((a,b) => a.beam_id - b.beam_id);
+            });
+            
+            return { satelliteGroups: groups };
+        }, [config]);
+
+        useEffect(() => {
+            const map = mapRef.current;
+            if (!config || !map) return;
+        
+            // Clear old layers from map and refs
+            Object.values(layersRef.current).forEach(layer => {
+                if (map.hasLayer(layer)) {
+                    map.removeLayer(layer);
+                }
+            });
+            layersRef.current = {};
+            beamsDataRef.current = {};
+        
+            const allBeams = {};
+            const filteredSatellites = config.CONSTELLATION.SATELLITES.filter(s => 
+                s.satellite_id && !String(s.satellite_id).toLowerCase().startsWith('test')
+            );
+            
+            filteredSatellites.forEach(satellite => {
+                if (satellite.BEAM && satellite.CARRIER) {
+                    satellite.BEAM.forEach(beam => {
+                        const carriers = satellite.CARRIER.filter(c => c.beam_id === beam.beam_id);
+                        if (carriers.length > 0) {
+                            const uniqueId = `${satellite.satellite_id}-${beam.beam_id}`;
+                            allBeams[uniqueId] = {
+                                ...beam,
+                                uniqueId: uniqueId,
+                                satellite_name: satellite.satellite_id,
+                                satellite_longitude: satellite.longitude,
+                                carriers: carriers,
+                            };
+                        }
+                    });
+                }
+            });
+            beamsDataRef.current = allBeams;
+        
+            // Pre-create all layers
+            const newLayers = {};
+            Object.values(allBeams).forEach(beamData => {
+                const layers = [];
+                const style = { color: "#f59e0b", weight: 2, opacity: 0.8, fillColor: "#f59e0b", fillOpacity: 0.2 };
+                
+                (beamData.CONTOUR || []).forEach(contour => {
+                    if (contour.type === 1 && contour.points) {
+                        const validPoints = contour.points.filter(p => Array.isArray(p) && p.length === 2 && !isNaN(p[0]) && !isNaN(p[1]));
+                        if (validPoints.length < 3) return;
+        
+                        const antimeridianFixedPoints = handleAntimeridianCrossing(validPoints);
+                        
+                        const addPolygonLayer = (points, shift) => {
+                            const shiftedPoints = points.map(p => [p[0], p[1] + shift]);
+                            return L.polygon(shiftedPoints, style);
+                        };
+                        layers.push(addPolygonLayer(antimeridianFixedPoints, 0));
+                        layers.push(addPolygonLayer(antimeridianFixedPoints, -360));
+                        layers.push(addPolygonLayer(antimeridianFixedPoints, 360));
+        
+                    } else if (contour.type === 0 && contour.center && contour.radius) {
+                        const center = [contour.center[0], contour.center[1]];
+                        const radius = contour.radius * 1000;
+                        if(radius > 0) {
+                            layers.push(L.circle(center, { ...style, radius }));
+                            layers.push(L.circle([center[0], center[1] - 360], { ...style, radius }));
+                            layers.push(L.circle([center[0], center[1] + 360], { ...style, radius }));
+                        }
+                    }
+                });
+                
+                if (layers.length > 0) {
+                    newLayers[beamData.uniqueId] = L.featureGroup(layers);
+                }
+            });
+            
+            layersRef.current = newLayers;
+            setSelectedLongitude('');
+            setSelectedBeamId(null);
+        
+        }, [config]);
+
+        useEffect(() => {
+            const map = mapRef.current;
+            const currentLayers = layersRef.current;
+            if (!map || !currentLayers) return;
+    
+            // Remove all beam layers from the map
+            Object.values(currentLayers).forEach(layer => {
+                if (map.hasLayer(layer)) {
+                    map.removeLayer(layer);
+                }
+            });
+    
+            const selectedLayer = currentLayers[selectedBeamId];
+    
+            if (selectedLayer) {
+                selectedLayer.addTo(map);
+                try {
+                    const bounds = selectedLayer.getBounds();
+                    if (bounds.isValid()) {
+                        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 5 });
+                    }
+                } catch(e) {
+                    console.error("Could not get bounds for layer", e);
+                }
+            }
+        }, [selectedBeamId]);
+
+        const handleSatelliteChange = (e) => {
+          setSelectedLongitude(e.target.value);
+          setSelectedBeamId(null);
+        };
+        
+        const selectedGroup = satelliteGroups[selectedLongitude];
+        const selectedBeam = beamsDataRef.current[selectedBeamId] || null;
+        
+        const formatLongitude = (lon) => {
+            if (typeof lon !== 'number') return '';
+            const direction = lon >= 0 ? 'E' : 'W';
+            return `${Math.abs(lon).toFixed(1)}° ${direction}`;
+        };
+
+        return (
+            <div className="space-y-6">
+                <div className="max-w-md">
+                    <label htmlFor="satellite-select" className="block text-sm font-medium text-gray-300 mb-2">Select Satellite Group</label>
+                    <select
+                        id="satellite-select"
+                        value={selectedLongitude}
+                        onChange={handleSatelliteChange}
+                        className="block w-full pl-3 pr-10 py-2 text-base border-gray-600 bg-gray-800 text-white focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm rounded-md"
+                    >
+                        <option value="">-- Please choose a satellite --</option>
+                        {Object.entries(satelliteGroups).sort((a,b) => parseFloat(a[0]) - parseFloat(b[0])).map(([lon, group]) => (
+                            <option key={lon} value={lon}>
+                                {Array.from(group.names).join(' / ')} ({formatLongitude(parseFloat(lon))})
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-6">
+                        {selectedGroup && (
+                            <div className="bg-gray-800/50 rounded-lg p-4 shadow-md border border-gray-700">
+                                <h3 className="text-lg font-bold text-amber-400 mb-3">Available Beams</h3>
+                                <div className="max-h-60 overflow-y-auto pr-2 space-y-2">
+                                    {selectedGroup.beams.map(beam => (
+                                        <button 
+                                            key={beam.uniqueId}
+                                            onClick={() => setSelectedBeamId(beam.uniqueId)}
+                                            className={`w-full text-left p-2 rounded-md transition-colors ${selectedBeamId === beam.uniqueId ? 'bg-amber-500/20 text-amber-300' : 'hover:bg-gray-700/50'}`}
+                                        >
+                                            <span className="font-semibold">Beam ID: {beam.beam_id}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        {selectedBeam && (
+                            <div className="bg-gray-800/50 rounded-lg p-4 shadow-md border border-gray-700">
+                                <h3 className="text-lg font-bold text-amber-400 mb-3">Beam Summary</h3>
+                                <dl>
+                                    <DetailItem label="Satellite Name" value={selectedBeam.satellite_name} />
+                                    <DetailItem label="Satellite Longitude" value={formatLongitude(selectedBeam.satellite_longitude)} />
+                                    <DetailItem label="Beam ID" value={selectedBeam.beam_id} />
+                                    {selectedBeam.carriers && selectedBeam.carriers.map((carrier, index) => (
+                                        <React.Fragment key={index}>
+                                           <div className="pt-2 mt-2 border-t border-gray-700/50">
+                                              <DetailItem label={`Polarization`} value={carrier.polarization} className="border-none"/>
+                                              <DetailItem label={`Center Freq`} value={`${(carrier.center_freq / 1000).toFixed(2)} KHz`} className="border-none"/>
+                                              <DetailItem label={`Symbol Rate`} value={carrier.symbol_rate} className="border-none"/>
+                                           </div>
+                                        </React.Fragment>
+                                    ))}
+                                </dl>
+                            </div>
+                        )}
+                    </div>
+                    <div className="min-h-[24rem]">
+                        <div id="map" className="w-full h-96 md:h-full rounded-lg bg-gray-800 border border-gray-700 shadow-lg"></div>
+                    </div>
+                </div>
+            </div>
+        );
+      };
+
+      const App = () => {
+        const [lanConfig, setLanConfig] = useState(null);
+        const [optConfig, setOptConfig] = useState(null);
+        const [constellationConfig, setConstellationConfig] = useState(null);
+        const [fileName, setFileName] = useState('');
+        const [error, setError] = useState(null);
+        const [isLoading, setIsLoading] = useState(false);
+        const [currentView, setCurrentView] = useState('lan');
+
+        const unwrapJson = (jsonObject) => {
+            const keys = Object.keys(jsonObject);
+            if (keys.length === 1 && typeof jsonObject[keys[0]] === 'object' && jsonObject[keys[0]] !== null) {
+                return jsonObject[keys[0]];
+            }
+            return jsonObject;
+        };
+
+        const handleFileUpload = useCallback(async (files) => {
+          setIsLoading(true);
+          setError(null);
+
+          let newLanConfig = lanConfig;
+          let newOptConfig = optConfig;
+          let newConstellationConfig = constellationConfig;
+          let newFileNames = fileName ? fileName.split(', ').filter(Boolean) : [];
+          let viewToFocus = currentView;
+          let filesWereProcessed = false;
+
+          for (const file of files) {
+              if (newFileNames.includes(file.name)) continue;
+
+              const isZip = file.name.toLowerCase().endsWith('.zip') || file.type.includes('zip');
+              const isJson = file.name.toLowerCase().endsWith('.json') || file.type.includes('json');
+
+              if (isZip) {
+                  filesWereProcessed = true;
+                  newFileNames.push(file.name);
+                  try {
+                      const zip = await JSZip.loadAsync(file);
+                      
+                      const lanFile = zip.file(/terminal_lan_opt\.json/i)[0];
+                      if (lanFile) {
+                          const lanJsonText = await lanFile.async("string");
+                          newLanConfig = unwrapJson(JSON.parse(lanJsonText));
+                          viewToFocus = 'lan';
+                      }
+
+                      const optFile = zip.file(/terminal_opt\.json/i)[0];
+                      if (optFile) {
+                          const optJsonText = await optFile.async("string");
+                          newOptConfig = unwrapJson(JSON.parse(optJsonText));
+                          if (viewToFocus !== 'lan') viewToFocus = 'opt';
+                      }
+
+                      const constellationFile = zip.file(/constellation_opt\.json/i)[0];
+                      if (constellationFile) {
+                          const constellationJsonText = await constellationFile.async("string");
+                          newConstellationConfig = JSON.parse(constellationJsonText);
+                          if (!['lan', 'opt'].includes(viewToFocus)) viewToFocus = 'constellation';
+                      }
+                      
+                      if (!lanFile && !optFile && !constellationFile) {
+                          throw new Error("No valid configuration files found in the zip archive.");
+                      }
+                  } catch (err) {
+                      const message = err instanceof Error ? err.message : 'Unknown error';
+                      setError(prev => prev ? `${prev}\nFailed to process ${file.name}: ${message}` : `Failed to process ${file.name}: ${message}`);
+                      newFileNames = newFileNames.filter(name => name !== file.name);
+                  }
+              } else if (isJson) {
+                  filesWereProcessed = true;
+                  newFileNames.push(file.name);
+                  try {
+                      const jsonText = await file.text();
+                      const parsedJson = JSON.parse(jsonText);
+
+                      if (parsedJson?.CONSTELLATION?.SATELLITES) {
+                          newConstellationConfig = parsedJson;
+                          viewToFocus = 'constellation';
+                      } else {
+                          const configData = unwrapJson(parsedJson);
+                          const type = configData?.NMS?.type;
+                          
+                          if (type === 'TERMINAL_LAN_OPT' || (configData?.SWITCH_PORT && configData?.VLAN_CONFIGURATIONS)) {
+                              newLanConfig = configData;
+                              viewToFocus = 'lan';
+                          } else { // Catches TERMINAL_OPT via type, or falls back to assuming OPT
+                              newOptConfig = configData;
+                              if (!['lan', 'constellation'].includes(viewToFocus)) viewToFocus = 'opt';
+                          }
+                      }
+                  } catch (err) {
+                      const message = err instanceof Error ? err.message : 'Unknown error';
+                      setError(prev => prev ? `${prev}\nFailed to process ${file.name}: ${message}` : `Failed to process ${file.name}: ${message}`);
+                      newFileNames = newFileNames.filter(name => name !== file.name);
+                  }
+              }
+          }
+          
+          setLanConfig(newLanConfig);
+          setOptConfig(newOptConfig);
+          setConstellationConfig(newConstellationConfig);
+          setFileName(newFileNames.join(', '));
+          
+          const hasCurrentData = (view) => {
+            if(view === 'lan') return !!newLanConfig;
+            if(view === 'opt') return !!newOptConfig;
+            if(view === 'constellation') return !!newConstellationConfig;
+            return false;
+          }
+          
+          if (!hasCurrentData(currentView) || (viewToFocus !== currentView && hasCurrentData(viewToFocus))) {
+             setCurrentView(viewToFocus);
+          }
+
+          if (!filesWereProcessed && files.length > 0) {
+              setError("Unsupported file type. Please upload .zip or .json files.");
+          }
+
+          setIsLoading(false);
+        }, [lanConfig, optConfig, constellationConfig, fileName, currentView]);
+
+        const handleReset = () => {
+          setLanConfig(null);
+          setOptConfig(null);
+          setConstellationConfig(null);
+          setFileName('');
+          setError(null);
+        };
+
+        const hasConfig = lanConfig || optConfig || constellationConfig;
+
+        return (
+          <div className="min-h-screen bg-gray-900 text-gray-100 p-4 sm:p-6 lg:p-8">
+            <div className="max-w-7xl mx-auto">
+              <header className="text-center mb-8">
+                <h1 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">
+                  Modem Configuration Visualizer
+                </h1>
+                <p className="mt-2 text-lg text-gray-400">
+                  Upload configuration <code className="bg-gray-700 text-sm rounded px-1 py-0.5">.zip</code> or <code className="bg-gray-700 text-sm rounded px-1 py-0.5">.json</code> files to see the details.
+                </p>
+              </header>
+
+              <main>
+                {isLoading && (
+                   <div className="text-center">
+                      <p className="text-lg text-indigo-400 animate-pulse">Parsing configuration...</p>
+                   </div>
+                )}
+
+                {!isLoading && !hasConfig && (
+                  <div className="mt-12">
+                      <FileUpload onFileUpload={handleFileUpload} setError={setError} />
+                  </div>
+                )}
+                
+                {error && (
+                   <div className="mt-6 max-w-2xl mx-auto bg-red-900/50 border border-red-700 text-red-300 px-4 py-3 rounded-lg text-center" role="alert">
+                      <strong className="font-bold">Error: </strong>
+                      <span className="block sm:inline whitespace-pre-wrap">{error}</span>
+                  </div>
+                )}
+
+                {!isLoading && hasConfig && (
+                  <div className="space-y-8">
+                    <div className="flex justify-between items-center bg-gray-800 p-4 rounded-lg border border-gray-700">
+                        <div>
+                            <h2 className="text-xl font-semibold">Loaded Configuration(s)</h2>
+                            <p className="text-sm text-gray-400 truncate max-w-md" title={fileName}>{fileName}</p>
+                        </div>
+                        <button
+                          onClick={handleReset}
+                          className="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-indigo-500 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-indigo-500 flex-shrink-0"
+                        >
+                          Load Other File(s)
+                        </button>
+                    </div>
+                    
+                    <ViewSwitcher 
+                        currentView={currentView} 
+                        setCurrentView={setCurrentView} 
+                        lanAvailable={!!lanConfig} 
+                        optAvailable={!!optConfig} 
+                        constellationAvailable={!!constellationConfig}
+                    />
+
+                    {currentView === 'lan' && lanConfig && (
+                         <div className="space-y-8">
+                            <ModemSchematic config={lanConfig} />
+                            <ConfigurationSummary config={lanConfig} />
+                        </div>
+                    )}
+                    {currentView === 'opt' && optConfig && (
+                        <OptConfigurationSummary config={optConfig} />
+                    )}
+                    {currentView === 'constellation' && constellationConfig && (
+                        <ConstellationVisualizer config={constellationConfig} />
+                    )}
+                  </div>
+                )}
+              </main>
+              <footer className="text-center mt-12 text-sm text-gray-500">
+                  <p>Built with React and Tailwind CSS.</p>
+              </footer>
+            </div>
+          </div>
+        );
+      };
+
+      const rootElement = document.getElementById('root');
+      if (!rootElement) {
+        throw new Error("Could not find root element to mount to");
+      }
+
+      const root = ReactDOM.createRoot(rootElement);
+      root.render(
+        <React.StrictMode>
+          <App />
+        </React.StrictMode>
+      );
+    </script>
+  </body>
+</html>
