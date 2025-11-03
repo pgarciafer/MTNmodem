@@ -36,7 +36,7 @@
       }
     </script>
   </head>
-  <body class="bg-white text-gray-800">
+  <body class="bg-gray-50 text-gray-800">
     <div id="root"></div>
     <script type="text/babel" data-type="module">
       import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
@@ -104,7 +104,7 @@
             <h3 className="text-lg font-bold text-gray-800 mb-2 text-center">{slotLabel}</h3>
             <label
               htmlFor={`file-upload-${slotLabel}`}
-              className="relative block w-full h-28 rounded-lg border-2 border-dashed border-gray-300 p-4 text-center hover:border-primary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/50 cursor-pointer bg-gray-100 transition-colors flex flex-col justify-center items-center"
+              className="relative block w-full h-28 rounded-lg border-2 border-dashed border-gray-300 p-4 text-center hover:border-primary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/50 cursor-pointer bg-white hover:bg-gray-50 transition-colors flex flex-col justify-center items-center"
               onDragOver={handleDragOver}
               onDrop={handleDrop}
             >
@@ -354,7 +354,7 @@
         );
       };
 
-      const OptConfigurationSummary = ({ config }) => {
+      const KeyInformation = ({ config }) => {
         const [keyInfo, setKeyInfo] = useState([]);
 
         useEffect(() => {
@@ -369,51 +369,52 @@
 
                 const traverse = (obj) => {
                     if (obj === null || typeof obj !== 'object') return;
-
                     for (const key in obj) {
                         if (Object.prototype.hasOwnProperty.call(obj, key)) {
                             const value = obj[key];
-                            
                             for (const label in searchTerms) {
                                 if (searchTerms[label].test(key) && (typeof value === 'string' || typeof value === 'number') && value) {
-                                     if (!info.some(i => i.label === label)) {
-                                        info.push({ label, value: String(value) });
-                                    }
+                                     if (!info.some(i => i.label === label)) { info.push({ label, value: String(value) }); }
                                 }
                             }
-
                              if (key.toUpperCase() === 'AIM' && typeof value === 'object' && value !== null) {
                                 for (const aimKey in value) {
-                                    if (/ip|address/i.test(aimKey)) {
+                                    if (/ip|address/i.test(aimKey) && value[aimKey]) {
                                         const addressValue = String(value[aimKey]);
                                         const parts = addressValue.split(';').map(p => p.trim());
-                                        const ipPart = parts.find(p => /\d+\.\d+\d+\.\d+/.test(p));
+                                        const ipPart = parts.find(p => /\d+\.\d+\.\d+\.\d+/.test(p));
                                         const portPart = parts.find(p => /^\d+$/.test(p) && p !== ipPart && parseInt(p, 10) > 0);
                                         if (ipPart) {
                                             const finalValue = portPart ? `${ipPart}:${portPart}` : ipPart;
-                                            if (!info.some(i => i.label === 'AIM Address')) {
-                                               info.push({ label: 'AIM Address', value: finalValue });
-                                            }
+                                            if (!info.some(i => i.label === 'AIM Address')) { info.push({ label: 'AIM Address', value: finalValue }); }
                                             break; 
                                         }
                                     }
                                 }
                             }
-                            
-                            if (typeof value === 'object') {
-                                traverse(value);
-                            }
+                            if (typeof value === 'object') { traverse(value); }
                         }
                     }
                 };
-
                 traverse(data);
                 return info;
+            };
+
+            const findKeyDeep = (obj, keyToFind) => {
+                let result = null;
+                function recurse(currentObj) {
+                    if (result || currentObj === null || typeof currentObj !== 'object') { return; }
+                    if (Object.prototype.hasOwnProperty.call(currentObj, keyToFind)) { result = currentObj[keyToFind]; return; }
+                    for (const key in currentObj) {
+                        if (Object.prototype.hasOwnProperty.call(currentObj, key)) { recurse(currentObj[key]); }
+                    }
+                }
+                recurse(obj);
+                return result;
             };
             
             const rawInfo = findKeyInfo(config);
             const uniqueInfo = Array.from(new Map(rawInfo.map(item => [item.label, item])).values());
-                    
             const modelInfo = uniqueInfo.find(item => item.label === 'Model');
             const snInfo = uniqueInfo.find(item => item.label === 'Serial Number');
             const otherInfo = uniqueInfo.filter(item => item.label !== 'Model' && item.label !== 'Serial Number');
@@ -427,10 +428,61 @@
                  combinedInfo.push({label: 'Serial Number', value: snInfo.value });
             }
             
-            setKeyInfo([...combinedInfo, ...otherInfo]);
+            const rfInfo = [];
+            const bucConfig = findKeyDeep(config, 'BUC');
+            const lnbConfig = findKeyDeep(config, 'LNB');
+
+            if (bucConfig && typeof bucConfig === 'object') {
+                const bucDetails = [
+                    bucConfig.buc_rated_power ? `${bucConfig.buc_rated_power}W` : null,
+                    bucConfig.lo_freq ? `LO: ${bucConfig.lo_freq} MHz` : null,
+                    bucConfig.start_freq && bucConfig.stop_freq ? `Freq: ${bucConfig.start_freq}-${bucConfig.stop_freq} MHz` : null,
+                    'odu_tx_dc_power_enable' in bucConfig ? `DC: ${bucConfig.odu_tx_dc_power_enable === 1 ? 'ON' : 'OFF'}` : null,
+                    'odu_tx_reference_clock' in bucConfig ? `10MHz: ${bucConfig.odu_tx_reference_clock === 10 ? 'ON' : 'OFF'}`: null
+                ].filter(Boolean).join(' | ');
+                if (bucDetails) { rfInfo.push({ label: 'BUC Config', value: bucDetails }); }
+            }
+
+            if (Array.isArray(lnbConfig)) {
+                const validLnbs = lnbConfig.filter(lnb => lnb && typeof lnb === 'object');
+                if (validLnbs.length > 0) {
+                    rfInfo.push({ label: 'LNBs Configured', value: String(validLnbs.length) });
+                    validLnbs.forEach((lnb, index) => {
+                        const lnbDetails = [
+                            'lnb_dc_voltage' in lnb ? `${lnb.lnb_dc_voltage}V` : null,
+                            'lnb_tone_enable' in lnb ? (lnb.lnb_tone_enable === 1 ? '22KHz Tone ON' : '0KHz Tone OFF') : null,
+                            'lo_freq' in lnb ? `LO: ${lnb.lo_freq} MHz` : null
+                        ].filter(Boolean).join(' | ');
+                        if (lnbDetails) {
+                            const label = validLnbs.length > 1 ? `LNB ${index + 1}` : 'LNB Config';
+                            rfInfo.push({ label, value: lnbDetails });
+                        }
+                    });
+                }
+            }
+            setKeyInfo([...combinedInfo, ...otherInfo, ...rfInfo]);
         }, [config]);
 
+        if (keyInfo.length === 0) {
+            return null;
+        }
 
+        return (
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+              <h3 className="text-lg font-bold text-primary mb-3">Key Information</h3>
+              <dl>
+                  {keyInfo.map(({ label, value }) => (
+                      <div key={label} className="flex justify-between items-start py-1 border-b border-gray-200 last:border-b-0">
+                          <dt className="text-xs text-gray-500 truncate pr-2">{label}</dt>
+                          <dd className="text-xs font-semibold text-gray-800 text-right font-mono break-all">{value}</dd>
+                      </div>
+                  ))}
+              </dl>
+          </div>
+        );
+      };
+
+      const OptConfigurationSummary = ({ config }) => {
         if (!config || typeof config !== 'object' || Object.keys(config).length === 0) {
             return (
                 <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 text-center">
@@ -491,21 +543,6 @@
 
         return (
             <div className="space-y-6">
-                {keyInfo.length > 0 && (
-                    <div className="bg-gradient-to-br from-blue-100 to-gray-50 rounded-lg p-6 shadow-sm border border-primary/50">
-                        <h3 className="text-xl font-bold text-primary mb-4 flex items-center gap-x-2">
-                            Key Information
-                        </h3>
-                        <dl className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3">
-                            {keyInfo.map(({ label, value }) => (
-                                <div key={label} className="flex flex-col">
-                                    <dt className="text-sm text-gray-500">{label}</dt>
-                                    <dd className="text-lg font-semibold text-gray-900 font-mono break-all">{value}</dd>
-                                </div>
-                            ))}
-                        </dl>
-                    </div>
-                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {primitiveEntries.length > 0 && (
                         <CollapsibleCard title="General Parameters" defaultOpen={true} className="md:col-span-1">
@@ -572,27 +609,38 @@
         const layersRef = useRef({});
 
         useEffect(() => {
-            if (!mapRef.current) {
-                mapRef.current = L.map('map', {
-                    worldCopyJump: true
-                }).setView([0, 0], 2);
-                L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-                    subdomains: 'abcd',
-                    maxZoom: 20
-                }).addTo(mapRef.current);
+            const mapContainer = document.getElementById('map');
+            if (mapContainer && mapContainer._leaflet_id) {
+                return;
             }
+
+            const map = L.map('map', {
+                worldCopyJump: true
+            }).setView([0, 0], 2);
+    
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 20
+            }).addTo(map);
+
+            mapRef.current = map;
+
+            return () => {
+                if (mapRef.current) {
+                    mapRef.current.remove();
+                    mapRef.current = null;
+                }
+            };
         }, []);
 
         useEffect(() => {
             if (mapRef.current) {
-                // When the view is shown or updated, the map container might need its size re-calculated.
-                // A short delay ensures the DOM has settled.
                 setTimeout(() => {
                     mapRef.current.invalidateSize();
                 }, 100);
             }
-        }); // No dependency array, runs on every render to catch layout changes
+        });
 
         const { satelliteGroups } = useMemo(() => {
             if (!config?.CONSTELLATION?.SATELLITES) return { satelliteGroups: {} };
@@ -792,7 +840,6 @@
                                 e.target.select();
                             }}
                             onBlur={() => {
-                                // Delay hiding to allow click events on results to fire
                                 setTimeout(() => setIsResultsOpen(false), 200);
                             }}
                             placeholder="Search by name or longitude..."
@@ -808,7 +855,7 @@
                                             return (
                                                 <button
                                                     key={lon}
-                                                    onMouseDown={() => { // use onMouseDown to fire before onBlur
+                                                    onMouseDown={() => {
                                                         setSelectedLongitude(lon);
                                                         setSearchTerm(displayText);
                                                         setIsResultsOpen(false);
@@ -864,22 +911,17 @@
         }
 
         if (Array.isArray(obj)) {
-          // First, recursively sort the elements of the array
           const sortedArray = obj.map(deepSortObject);
           
-          // Then, if it's an array of objects, try to sort the array itself
           if (sortedArray.length > 0 && typeof sortedArray[0] === 'object' && sortedArray[0] !== null) {
-            // Common keys to identify objects in an array
             const keyCandidates = ['id', 'vid', 'port_number', 'satellite_id', 'beam_id', 'terminal_vid'];
             
-            // Find the first candidate key that exists in ALL objects of the array
             const sortKey = keyCandidates.find(key => 
               sortedArray.every(item => item && typeof item === 'object' && item.hasOwnProperty(key))
             );
             
             if (sortKey) {
               sortedArray.sort((a, b) => {
-                // Handle numeric or string comparison
                 if (a[sortKey] < b[sortKey]) return -1;
                 if (a[sortKey] > b[sortKey]) return 1;
                 return 0;
@@ -889,7 +931,6 @@
           return sortedArray;
         }
 
-        // For objects, sort by keys
         return Object.keys(obj).sort().reduce((result, key) => {
           result[key] = deepSortObject(obj[key]);
           return result;
@@ -1128,7 +1169,7 @@
         const [configSetB, setConfigSetB] = useState({ lan: null, opt: null, constellation: null, fileName: '' });
         const [error, setError] = useState(null);
         const [isLoading, setIsLoading] = useState(false);
-        const [currentView, setCurrentView] = useState('upload'); // e.g., 'lanA', 'lanCompare'
+        const [currentView, setCurrentView] = useState('upload');
 
         const formatLongitude = (lon) => {
             if (typeof lon !== 'number') return '';
@@ -1218,15 +1259,29 @@
 
         const handleReset = (slot) => {
             const emptyState = { lan: null, opt: null, constellation: null, fileName: '' };
+            
+            const getFirstAvailableView = (configSet, suffix) => {
+                if (configSet.lan) return `lan${suffix}`;
+                if (configSet.opt) return `opt${suffix}`;
+                if (configSet.constellation) return `constellation${suffix}`;
+                return null;
+            };
+        
             if (slot === 'A') {
+              const isShowingAView = currentView.endsWith('A');
+              const isShowingCompare = currentView.endsWith('Compare');
               setConfigSetA(emptyState);
-              if (currentView.endsWith('A') || (currentView.endsWith('Compare') && !configSetB.fileName)) {
-                  setCurrentView(configSetB.fileName ? 'lanB' : 'upload');
+              if (isShowingAView || (isShowingCompare && !configSetB.fileName)) {
+                  const nextView = getFirstAvailableView(configSetB, 'B') || 'upload';
+                  setCurrentView(nextView);
               }
             } else if (slot === 'B') {
+              const isShowingBView = currentView.endsWith('B');
+              const isShowingCompare = currentView.endsWith('Compare');
               setConfigSetB(emptyState);
-              if (currentView.endsWith('B') || (currentView.endsWith('Compare') && !configSetA.fileName)) {
-                  setCurrentView(configSetA.fileName ? 'lanA' : 'upload');
+              if (isShowingBView || (isShowingCompare && !configSetA.fileName)) {
+                  const nextView = getFirstAvailableView(configSetA, 'A') || 'upload';
+                  setCurrentView(nextView);
               }
             } else { // 'all'
                 setConfigSetA(emptyState);
@@ -1244,9 +1299,9 @@
                 case 'optB': return configSetB.opt && <OptConfigurationSummary config={configSetB.opt} />;
                 case 'constellationA': return configSetA.constellation && <ConstellationVisualizer config={configSetA.constellation} formatLongitude={formatLongitude} />;
                 case 'constellationB': return configSetB.constellation && <ConstellationVisualizer config={configSetB.constellation} formatLongitude={formatLongitude} />;
-                case 'lanCompare': return <LanComparisonView configA={configSetA.lan} configB={configSetB.lan} />;
-                case 'optCompare': return <ComparisonView configA={configSetA.opt} configB={configSetB.opt} configType="TERMINAL_OPT" />;
-                case 'constellationCompare': return <ConstellationComparison configA={configSetA.constellation} configB={configSetB.constellation} formatLongitude={formatLongitude} />;
+                case 'lanCompare': return configSetA.lan && configSetB.lan && <LanComparisonView configA={configSetA.lan} configB={configSetB.lan} />;
+                case 'optCompare': return configSetA.opt && configSetB.opt && <ComparisonView configA={configSetA.opt} configB={configSetB.opt} configType="TERMINAL_OPT" />;
+                case 'constellationCompare': return configSetA.constellation && configSetB.constellation && <ConstellationComparison configA={configSetA.constellation} configB={configSetB.constellation} formatLongitude={formatLongitude} />;
                 default: return null;
             }
         };
@@ -1278,23 +1333,14 @@
                 const typesToCheck = [currentConfigType, ...configTypesInOrder.filter(t => t !== currentConfigType)];
 
                 for (const type of typesToCheck) {
-                    if (tabId === 'A' && configSetA[type]) {
-                        setCurrentView(`${type}A`);
-                        return;
-                    }
-                    if (tabId === 'B' && configSetB[type]) {
-                        setCurrentView(`${type}B`);
-                        return;
-                    }
-                    if (tabId === 'Compare' && configSetA[type] && configSetB[type]) {
-                        setCurrentView(`${type}Compare`);
-                        return;
-                    }
+                    if (tabId === 'A' && configSetA[type]) { setCurrentView(`${type}A`); return; }
+                    if (tabId === 'B' && configSetB[type]) { setCurrentView(`${type}B`); return; }
+                    if (tabId === 'Compare' && configSetA[type] && configSetB[type]) { setCurrentView(`${type}Compare`); return; }
                 }
             };
         
             return (
-                <div className="w-full">
+                <div className="w-full bg-white p-4 rounded-lg shadow-sm border border-gray-200">
                     <div className="border-b border-gray-200">
                         <nav className="-mb-px flex space-x-8" aria-label="Tabs">
                             {tabs.map(tab => (
@@ -1324,7 +1370,7 @@
                                         key={type.id + activeTab}
                                         disabled={isDisabled}
                                         onClick={() => setCurrentView(targetView)}
-                                        className={`font-semibold py-2 px-4 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-50 ${
+                                        className={`font-semibold py-2 px-4 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white ${
                                             isDisabled ? 'bg-gray-200 text-gray-400 cursor-not-allowed' :
                                             isActive ? 'bg-primary text-white shadow-md' : 'bg-white hover:bg-gray-100 text-gray-700 border border-gray-300'
                                         }`}
@@ -1340,8 +1386,8 @@
         };
 
         return (
-          <div className="min-h-screen bg-white text-gray-800 p-4 sm:p-6 lg:p-8">
-            <div className="max-w-7xl mx-auto">
+          <div className="min-h-screen p-4 sm:p-6 lg:p-8">
+            <div className="max-w-screen-xl mx-auto">
               <header className="text-center mb-8 flex flex-col sm:flex-row items-center justify-center gap-4">
                 <img src="https://raw.githubusercontent.com/pgarciafer/MTNblockagechart/main/logo.png" alt="MTN Logo" className="h-12" />
                 <h1 className="text-3xl sm:text-4xl font-bold text-primary">
@@ -1362,57 +1408,74 @@
                           <FileUpload slotLabel="Configuration A" onFileUpload={(files) => handleFileUpload(files, 'A')} setError={setError} />
                           <FileUpload slotLabel="Configuration B" onFileUpload={(files) => handleFileUpload(files, 'B')} setError={setError} />
                       </div>
+                      {error && (
+                        <div className="mt-8 max-w-4xl mx-auto bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                           <strong className="font-bold">Error:</strong>
+                           <pre className="mt-2 text-sm whitespace-pre-wrap">{error}</pre>
+                        </div>
+                      )}
                   </div>
                 )}
                 
-                {error && (
-                   <div className="mt-6 max-w-4xl mx-auto bg-red-100 border border-red-300 text-red-800 px-4 py-3 rounded-lg " role="alert">
-                      <strong className="font-bold">Error: </strong>
-                      <pre className="mt-2 text-sm whitespace-pre-wrap">{error}</pre>
-                  </div>
+                {!isLoading && hasAnyConfig && (
+                    <div className="grid lg:grid-cols-12 gap-8 mt-8">
+                        <aside className="lg:col-span-3 space-y-6">
+                            <FileUpload 
+                                slotLabel="Configuration A" 
+                                onFileUpload={(files) => handleFileUpload(files, 'A')} 
+                                fileName={configSetA.fileName} 
+                                onReset={() => handleReset('A')}
+                                setError={setError} 
+                            />
+                            {configSetA.opt && <KeyInformation config={configSetA.opt} />}
+
+                            <FileUpload 
+                                slotLabel="Configuration B" 
+                                onFileUpload={(files) => handleFileUpload(files, 'B')} 
+                                fileName={configSetB.fileName} 
+                                onReset={() => handleReset('B')}
+                                setError={setError} 
+                            />
+                            {configSetB.opt && <KeyInformation config={configSetB.opt} />}
+
+                            <button
+                                onClick={() => handleReset('all')}
+                                className="w-full text-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-danger hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                            >
+                                Reset All Configurations
+                            </button>
+                            
+                            {error && (
+                                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                                    <strong className="font-bold">Error:</strong>
+                                    <pre className="mt-2 text-sm whitespace-pre-wrap">{error}</pre>
+                                </div>
+                            )}
+                        </aside>
+
+                        <div className="lg:col-span-9">
+                            <ViewTabs />
+                            <div className="mt-8">
+                                {renderView() || (
+                                    <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
+                                        <h2 className="text-xl font-semibold text-gray-700">Select a View</h2>
+                                        <p className="mt-2 text-gray-500">Please upload a valid configuration file and select a view from the tabs above.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 )}
 
-                {!isLoading && hasAnyConfig && (
-                  <div className="space-y-8">
-                    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm space-y-4">
-                        <div className="flex flex-col md:flex-row justify-between items-start gap-4">
-                           <div className="flex-1 w-full"> <FileUpload slotLabel="Configuration A" fileName={configSetA.fileName} onReset={() => handleReset('A')} onFileUpload={(files) => handleFileUpload(files, 'A')} setError={setError}/></div>
-                           <div className="flex-1 w-full"> <FileUpload slotLabel="Configuration B" fileName={configSetB.fileName} onReset={() => handleReset('B')} onFileUpload={(files) => handleFileUpload(files, 'B')} setError={setError}/></div>
-                        </div>
-                        <div className="text-center">
-                            <button
-                              onClick={() => handleReset('all')}
-                              className="bg-danger text-white font-semibold py-2 px-4 rounded-md hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white focus:ring-danger"
-                            >
-                              Reset All
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <ViewTabs />
-                    
-                    <div className="mt-6">
-                      {renderView()}
-                    </div>
-                  </div>
-                )}
               </main>
             </div>
           </div>
         );
       };
 
-      const rootElement = document.getElementById('root');
-      if (!rootElement) {
-        throw new Error("Could not find root element to mount to");
-      }
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<App />);
 
-      const root = ReactDOM.createRoot(rootElement);
-      root.render(
-        <React.StrictMode>
-          <App />
-        </React.StrictMode>
-      );
     </script>
   </body>
 </html>
