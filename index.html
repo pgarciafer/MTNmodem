@@ -2168,7 +2168,7 @@
 
                 {!isLoading && hasAnyConfig && (
                   <div className="grid lg:grid-cols-12 gap-8 mt-8">
-                    <aside className="lg:col-span-3 space-y-6 min-w-0">
+                    <aside className="lg:col-span-4 space-y-6 min-w-0">
                       <FileUpload
                         slotLabel="Configuration A"
                         onFileUpload={(files) => handleFileUpload(files, 'A')}
@@ -2211,7 +2211,7 @@
                       )}
                     </aside>
 
-                    <div className="lg:col-span-9 min-w-0">
+                    <div className="lg:col-span-8 min-w-0">
                       <ViewTabs />
                       <div className="mt-8">
                         {renderView() || (
