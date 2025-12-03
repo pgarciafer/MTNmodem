@@ -15,13 +15,26 @@
         theme: {
           extend: {
             colors: {
+              mtn: {
+                blue: '#1B5087',      // Main Blue - Sub Headers, CTAs
+                sky: '#58A0D4',       // Secondary Blue - Accents, Links
+                gold: '#EBB020',      // Golden Yellow - Highlights, Emphasis
+                dark: '#08192B',      // Dark Blue - Backgrounds
+                text: '#131517',      // Text - Body Copy
+                neutral: '#EFEFEF',   // Light Grey - Backgrounds
+                'pale-blue': '#D4E5F7',   // Light Blue - Accents
+                'pale-yellow': '#FBEFD0', // Light Yellow - Highlights
+              },
               primary: {
-                DEFAULT: '#005A9C',
-                hover: '#004a80',
+                DEFAULT: '#1B5087',
+                hover: '#08192B',
               },
               danger: '#dc3545',
               success: '#28a745',
             },
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif'],
+            }
           },
         },
       };
@@ -48,8 +61,25 @@
         }
       }
     </script>
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #EFEFEF; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #58A0D4; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #1B5087; 
+        }
+    </style>
   </head>
-  <body class="bg-gray-50 text-gray-800">
+  <body class="bg-mtn-neutral text-mtn-text font-sans antialiased min-h-screen">
     <div id="root"></div>
     <script type="text/babel" data-type="module">
       import React, {
@@ -61,7 +91,7 @@
       } from 'react';
       import ReactDOM from 'react-dom/client';
 
-      // --- All components and logic are now in this script tag ---
+      // --- All components and logic ---
 
       const handleAntimeridianCrossing = (points) => {
         if (!points || points.length < 2) return points;
@@ -117,19 +147,19 @@
         if (fileName) {
           return (
             <div className="w-full mx-auto">
-              <h3 className="text-lg font-bold text-gray-800 mb-2 text-center">
+              <h3 className="text-lg font-bold text-mtn-blue mb-2 text-center">
                 {slotLabel}
               </h3>
-              <div className="relative w-full h-28 rounded-lg border-2 border-green-300 p-4 text-center bg-green-50 flex flex-col justify-center">
+              <div className="relative w-full h-28 rounded-lg border border-mtn-sky/50 p-4 text-center bg-mtn-pale-blue shadow-sm flex flex-col justify-center">
                 <p
-                  className="text-sm font-medium text-green-800 truncate"
+                  className="text-sm font-medium text-mtn-dark truncate"
                   title={fileName}
                 >
                   {fileName}
                 </p>
                 <button
                   onClick={onReset}
-                  className="absolute top-2 right-2 text-2xl font-bold text-gray-400 hover:text-danger"
+                  className="absolute top-2 right-2 text-2xl font-bold text-mtn-sky hover:text-danger transition-colors"
                 >
                   &times;
                 </button>
@@ -140,17 +170,17 @@
 
         return (
           <div className="w-full mx-auto">
-            <h3 className="text-lg font-bold text-gray-800 mb-2 text-center">
+            <h3 className="text-lg font-bold text-mtn-blue mb-2 text-center">
               {slotLabel}
             </h3>
             <label
               htmlFor={`file-upload-${slotLabel}`}
-              className="relative block w-full h-28 rounded-lg border-2 border-dashed border-gray-300 p-4 text-center hover:border-primary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/50 cursor-pointer bg-white hover:bg-gray-50 transition-colors flex flex-col justify-center items-center"
+              className="relative block w-full h-28 rounded-lg border-2 border-dashed border-gray-300 p-4 text-center hover:border-mtn-sky hover:bg-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-mtn-blue/50 cursor-pointer bg-gray-50 transition-all flex flex-col justify-center items-center group"
               onDragOver={handleDragOver}
               onDrop={handleDrop}
             >
               <svg
-                className="mx-auto h-10 w-10 text-gray-400"
+                className="mx-auto h-10 w-10 text-gray-400 group-hover:text-mtn-sky transition-colors"
                 stroke="currentColor"
                 fill="none"
                 viewBox="0 0 24 24"
@@ -158,13 +188,13 @@
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth={1}
+                  strokeWidth={1.5}
                   d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"
                 />
               </svg>
-              <span className="mt-2 block text-sm font-medium text-gray-600">
-                Drop <span className="text-primary">.zip</span> or{' '}
-                <span className="text-primary">.json</span> file
+              <span className="mt-2 block text-sm font-medium text-gray-600 group-hover:text-mtn-blue">
+                Drop <span className="text-mtn-gold font-bold">.zip</span> or{' '}
+                <span className="text-mtn-gold font-bold">.json</span> file
               </span>
               <span className="mt-1 block text-xs text-gray-500">
                 or click to browse
@@ -184,23 +214,23 @@
 
       const vlanColorStyles = {
         '1': {
-          bg: 'bg-green-100',
-          border: 'border-green-400',
-          text: 'text-green-800',
-          led: 'bg-green-500 shadow-[0_0_5px_1px_rgba(34,197,94,0.7)]',
-          hex: '#4ade80',
+          bg: 'bg-mtn-pale-blue',
+          border: 'border-mtn-blue',
+          text: 'text-mtn-blue',
+          led: 'bg-mtn-blue shadow-[0_0_5px_1px_rgba(27,80,135,0.7)]',
+          hex: '#1B5087',
         },
         '900': {
-          bg: 'bg-sky-100',
-          border: 'border-sky-400',
-          text: 'text-sky-800',
-          led: 'bg-sky-500 shadow-[0_0_5px_1px_rgba(14,165,233,0.7)]',
-          hex: '#38bdf8',
+          bg: 'bg-blue-50',
+          border: 'border-mtn-sky',
+          text: 'text-mtn-blue',
+          led: 'bg-mtn-sky shadow-[0_0_5px_1px_rgba(88,160,212,0.7)]',
+          hex: '#58A0D4',
         },
         default: {
           bg: 'bg-gray-100',
           border: 'border-gray-400',
-          text: 'text-gray-800',
+          text: 'text-gray-600',
           led: 'bg-gray-500 shadow-[0_0_5px_1px_rgba(107,114,128,0.7)]',
           hex: '#9ca3af',
         },
@@ -243,7 +273,7 @@
 
           let portStyle = {};
           let portClasses =
-            'group relative rounded-lg p-1 sm:p-2 border-2 text-center transition-all w-full flex flex-col justify-between items-center min-h-[5rem] sm:min-h-[6rem] hover:scale-105 hover:shadow-xl hover:border-primary';
+            'group relative rounded-lg p-1 sm:p-2 border-2 text-center transition-all w-full flex flex-col justify-between items-center min-h-[5rem] sm:min-h-[6rem] hover:scale-105 hover:shadow-lg hover:border-mtn-gold';
           let ledClasses = 'w-2 h-2 rounded-full animate-pulse';
 
           if (isMultiVlan) {
@@ -257,7 +287,7 @@
                 ? `linear-gradient(45deg, ${gradientColors.join(', ')})`
                 : `solid ${gradientColors[0] || vlanColorStyles.default.hex}`;
 
-            portClasses += ' border-primary text-gray-800';
+            portClasses += ' border-mtn-blue text-mtn-text';
             ledClasses +=
               ' bg-white shadow-[0_0_5px_1px_rgba(255,255,255,0.7)]';
           } else {
@@ -271,32 +301,32 @@
             <div className={portClasses} style={portStyle}>
               <div className="w-full flex justify-between items-center">
                 <div className={ledClasses}></div>
-                <div className="text-xs font-mono text-gray-500">
+                <div className="text-xs font-mono opacity-70">
                   P{port.port_number}
                 </div>
               </div>
 
               <LanPortIcon className="w-8 h-8 sm:w-10 sm:h-10 my-1" />
 
-              <div className="text-xs sm:text-sm font-semibold break-words">
+              <div className="text-xs sm:text-sm font-bold break-words">
                 {isMultiVlan ? 'VLANs' : 'VLAN'} {vlanListString}
               </div>
 
-              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-max max-w-xs bg-white text-gray-700 text-xs rounded-lg shadow-lg p-2 border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10">
+              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-max max-w-xs bg-mtn-dark text-white text-xs rounded-lg shadow-xl p-2 border border-mtn-blue opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10">
                 <dl className="space-y-1">
                   {ipAddressesInfo.map(({ vlan, ip }) => (
                     <div
                       key={vlan}
                       className="flex justify-between items-start gap-4"
                     >
-                      <dt className="text-gray-500 flex-shrink-0">
+                      <dt className="text-gray-300 flex-shrink-0">
                         VLAN {vlan} IP:
                       </dt>
-                      <dd className="font-semibold font-mono">{ip}</dd>
+                      <dd className="font-semibold font-mono text-mtn-gold">{ip}</dd>
                     </div>
                   ))}
                 </dl>
-                <div className="absolute left-1/2 -translate-x-1/2 bottom-[-4px] w-2 h-2 bg-white transform rotate-45 border-b border-r border-gray-200"></div>
+                <div className="absolute left-1/2 -translate-x-1/2 bottom-[-4px] w-2 h-2 bg-mtn-dark transform rotate-45 border-b border-r border-mtn-blue"></div>
               </div>
             </div>
           );
@@ -304,10 +334,10 @@
 
         return (
           <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm border border-gray-200">
-            <h2 className="text-xl font-bold text-gray-700 mb-4">
+            <h2 className="text-xl font-bold text-mtn-blue mb-4 border-b border-gray-100 pb-2">
               Modem Schematic
             </h2>
-            <div className="bg-gray-50 rounded-lg p-2 sm:p-4">
+            <div className="bg-mtn-neutral/50 rounded-lg p-2 sm:p-4 border border-gray-200">
               <div className="flex flex-col justify-center gap-2 md:gap-4 w-full">
                 {is8PortLayout && (
                   <div className="grid grid-cols-4 gap-1 sm:gap-2 md:gap-4">
@@ -329,10 +359,10 @@
 
       const DetailItem = ({ label, value, className = '' }) => (
         <div
-          className={`flex justify-between items-start py-2 border-b border-gray-200 ${className}`}
+          className={`flex justify-between items-start py-2 border-b border-gray-100 ${className}`}
         >
           <dt className="text-sm text-gray-500 truncate pr-2">{label}</dt>
-          <dd className="text-sm font-semibold text-gray-800 text-right break-all">
+          <dd className="text-sm font-semibold text-mtn-text text-right break-all">
             {value}
           </dd>
         </div>
@@ -340,18 +370,18 @@
 
       const StatusPill = ({ enabled }) =>
         enabled ? (
-          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 border border-green-200">
             Enabled
           </span>
         ) : (
-          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800 border border-red-200">
             Disabled
           </span>
         );
 
       const DhcpDetails = ({ dhcpConfig }) => (
         <>
-          <h4 className="font-semibold text-gray-600 mt-4 mb-2">
+          <h4 className="font-semibold text-mtn-sky mt-4 mb-2 uppercase text-xs tracking-wider">
             DHCPv4 Configuration
           </h4>
           <dl>
@@ -400,15 +430,14 @@
       );
 
       const VlanCard = ({ vlanConfig }) => (
-        <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm border border-gray-200">
-          <h3 className="text-lg font-bold text-primary mb-3">
-            VLAN Configuration:{' '}
-            <span className="text-gray-900">{vlanConfig.vid}</span>
+        <div className="bg-white rounded-lg p-4 sm:p-6 shadow-md border-t-4 border-t-mtn-blue border-l border-r border-b border-gray-200 hover:shadow-lg transition-shadow">
+          <h3 className="text-lg font-bold text-mtn-blue mb-3 flex items-center">
+            VLAN <span className="ml-2 bg-mtn-blue text-white px-2 py-0.5 rounded text-sm">{vlanConfig.vid}</span>
           </h3>
 
-          <h4 className="font-semibold text-gray-600 mb-2">IP Interfaces</h4>
+          <h4 className="font-semibold text-mtn-sky mb-2 uppercase text-xs tracking-wider">IP Interfaces</h4>
           {vlanConfig.IP_INTERFACES.map((iface, index) => (
-            <div key={index} className="bg-gray-50 p-3 rounded-md mb-2">
+            <div key={index} className="bg-mtn-neutral/50 p-3 rounded-md mb-2 border border-gray-100">
               <dl>
                 <DetailItem
                   label="Interface"
@@ -417,7 +446,7 @@
                 />
                 <DetailItem
                   label="Address"
-                  value={<code className="text-sm">{iface.address}</code>}
+                  value={<code className="text-sm text-mtn-dark font-bold">{iface.address}</code>}
                   className="border-none py-1"
                 />
                 <DetailItem
@@ -442,10 +471,10 @@
         return (
           <div className="space-y-6">
             <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm border border-gray-200">
-              <h3 className="text-lg font-bold text-primary mb-3">
+              <h3 className="text-lg font-bold text-mtn-blue mb-3 border-b border-gray-100 pb-2">
                 General Information
               </h3>
-              <dl>
+              <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
                 <DetailItem label="Element Type" value={config.NMS.type} />
                 <DetailItem label="Element ID" value={config.NMS.element_id} />
                 <DetailItem
@@ -484,13 +513,13 @@
           >
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="w-full flex justify-between items-center p-4 text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary/50"
+              className="w-full flex justify-between items-center p-4 text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-mtn-sky/50 hover:bg-gray-50 transition-colors rounded-t-lg"
               aria-expanded={isOpen}
             >
-              <h3 className="text-lg font-bold text-primary">{title}</h3>
+              <h3 className="text-lg font-bold text-mtn-blue">{title}</h3>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className={`h-6 w-6 transform transition-transform duration-200 text-gray-400 ${
+                className={`h-6 w-6 transform transition-transform duration-200 text-mtn-gold ${
                   isOpen ? 'rotate-180' : ''
                 }`}
                 fill="none"
@@ -507,7 +536,7 @@
             </button>
             {isOpen && (
               <div className="p-4 pt-0">
-                <div className="border-t border-gray-200 pt-4">{children}</div>
+                <div className="border-t border-gray-100 pt-4">{children}</div>
               </div>
             )}
           </div>
@@ -702,20 +731,20 @@
         }
 
         return (
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-            <h3 className="text-lg font-bold text-primary mb-3">
+          <div className="bg-gradient-to-br from-mtn-blue to-mtn-dark rounded-lg p-6 shadow-md border border-mtn-blue text-white">
+            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-x-2 border-b border-white/20 pb-2">
               Key Information
             </h3>
             <dl>
               {keyInfo.map(({ label, value }) => (
                 <div
                   key={label}
-                  className="flex flex-col sm:flex-row sm:justify-between sm:items-start py-1 border-b border-gray-200 last:border-b-0"
+                  className="flex flex-col sm:flex-row sm:justify-between sm:items-start py-2 border-b border-white/10 last:border-b-0"
                 >
-                  <dt className="text-xs text-gray-500 truncate pr-2">
+                  <dt className="text-xs text-mtn-sky font-semibold truncate pr-2 uppercase tracking-wide">
                     {label}
                   </dt>
-                  <dd className="text-xs font-semibold text-gray-800 sm:text-right font-mono break-all">
+                  <dd className="text-xs font-semibold text-white sm:text-right font-mono break-all">
                     {value}
                   </dd>
                 </div>
@@ -757,8 +786,8 @@
             return (
               <div className="space-y-2">
                 {value.map((item, index) => (
-                  <div key={index} className="bg-gray-100 p-3 rounded-md">
-                    <pre className="text-xs text-gray-800 overflow-x-auto whitespace-pre-wrap break-all">
+                  <div key={index} className="bg-mtn-neutral p-3 rounded-md border border-gray-200">
+                    <pre className="text-xs text-mtn-text overflow-x-auto whitespace-pre-wrap break-all">
                       {JSON.stringify(item, null, 2)}
                     </pre>
                   </div>
@@ -768,12 +797,12 @@
           }
           if (typeof value === 'object') {
             return (
-              <pre className="mt-1 text-left bg-gray-100 p-3 rounded-md overflow-x-auto text-xs text-gray-800 whitespace-pre-wrap break-all">
+              <pre className="mt-1 text-left bg-mtn-neutral p-3 rounded-md overflow-x-auto text-xs text-mtn-text whitespace-pre-wrap break-all border border-gray-200">
                 {JSON.stringify(value, null, 2)}
               </pre>
             );
           }
-          return <code className="text-sm break-all">{String(value)}</code>;
+          return <code className="text-sm break-all font-mono text-mtn-dark">{String(value)}</code>;
         };
 
         const renderDetailItem = (key, value) => {
@@ -784,8 +813,8 @@
 
           if (isBlock) {
             return (
-              <div key={key} className="py-2 border-b border-gray-200">
-                <dt className="text-sm text-gray-500">{formattedKey}</dt>
+              <div key={key} className="py-2 border-b border-gray-100">
+                <dt className="text-sm text-gray-500 font-medium">{formattedKey}</dt>
                 <dd className="mt-1">{renderValue(value)}</dd>
               </div>
             );
@@ -863,7 +892,7 @@
 
       const BeamSummaryDetails = ({ selectedBeam, formatLongitude }) => (
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-          <h3 className="text-lg font-bold text-primary mb-3">Beam Summary</h3>
+          <h3 className="text-lg font-bold text-mtn-blue mb-3 border-b border-gray-100 pb-1">Beam Summary</h3>
           <dl>
             <DetailItem
               label="Satellite Name"
@@ -1058,12 +1087,13 @@
 
           const newLayers = {};
           Object.values(allBeams).forEach((beamData) => {
+            // Update beam colors to MTN Gold/Yellow
             const style = {
-              color: '#D97706',
+              color: '#EBB020', // mtn-gold
               weight: 2,
               opacity: 0.8,
-              fillColor: '#FBBF24',
-              fillOpacity: 0.2,
+              fillColor: '#FBEFD0', // mtn-pale-yellow
+              fillOpacity: 0.4,
             };
             let originalGeometryLayer = null;
             const allGeometries = [];
@@ -1173,7 +1203,7 @@
             <div className="max-w-md space-y-2">
               <label
                 htmlFor="satellite-search"
-                className="block text-sm font-medium text-gray-600"
+                className="block text-sm font-medium text-mtn-blue"
               >
                 Search Satellite
               </label>
@@ -1212,7 +1242,7 @@
                     setTimeout(() => setIsResultsOpen(false), 200);
                   }}
                   placeholder="Search by name or longitude..."
-                  className="block w-full rounded-md border-gray-300 bg-white text-gray-800 pl-10 py-2 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                  className="block w-full rounded-md border-gray-300 bg-white text-mtn-text pl-10 py-2 shadow-sm focus:border-mtn-blue focus:ring-mtn-blue sm:text-sm"
                 />
                 {isResultsOpen && (
                   <div className="absolute z-[1001] mt-1 w-full max-h-60 overflow-y-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
@@ -1232,7 +1262,7 @@
                                 setIsResultsOpen(false);
                                 setSelectedBeamId(null);
                               }}
-                              className="w-full text-left cursor-pointer select-none relative py-2 pl-3 pr-9 text-gray-900 hover:bg-primary hover:text-white"
+                              className="w-full text-left cursor-pointer select-none relative py-2 pl-3 pr-9 text-mtn-text hover:bg-mtn-blue hover:text-white"
                             >
                               {displayText}
                             </button>
@@ -1252,7 +1282,7 @@
               <div className="md:w-1/2 space-y-6">
                 {selectedGroup && (
                   <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-                    <h3 className="text-lg font-bold text-primary mb-3">
+                    <h3 className="text-lg font-bold text-mtn-blue mb-3">
                       Available Beams
                     </h3>
                     <div className="max-h-60 overflow-y-auto pr-2 space-y-2">
@@ -1262,8 +1292,8 @@
                           onClick={() => setSelectedBeamId(beam.uniqueId)}
                           className={`w-full text-left p-2 rounded-md transition-colors ${
                             selectedBeamId === beam.uniqueId
-                              ? 'bg-primary/10 text-primary'
-                              : 'hover:bg-gray-100'
+                              ? 'bg-mtn-pale-blue text-mtn-blue border border-mtn-sky'
+                              : 'hover:bg-mtn-neutral border border-transparent'
                           }`}
                         >
                           <span className="font-semibold">
@@ -1395,7 +1425,7 @@
         if (differences.length === 0) {
           return (
             <div
-              className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-md"
+              className="bg-green-50 border-l-4 border-green-500 text-green-800 p-4 rounded-md shadow-sm"
               role="alert"
             >
               <p className="font-bold">No Differences Found</p>
@@ -1406,13 +1436,13 @@
 
         return (
           <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm border border-gray-200">
-            <h3 className="text-xl font-bold text-primary mb-4">
+            <h3 className="text-xl font-bold text-mtn-blue mb-4">
               Configuration Differences
             </h3>
             <div className="space-y-4">
               {differences.map((diff, index) => (
-                <div key={index} className="p-3 rounded-lg border">
-                  <strong className="text-sm font-mono text-gray-700 break-all">
+                <div key={index} className="p-3 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
+                  <strong className="text-sm font-mono text-mtn-dark break-all">
                     {diff.path}
                   </strong>
                   {diff.type === 'MODIFIED' && (
@@ -1421,7 +1451,7 @@
                         <p className="text-xs text-red-600 font-semibold mb-1">
                           A (Old Value)
                         </p>
-                        <div className="border border-red-200 rounded-md p-2">
+                        <div className="border border-red-200 rounded-md p-2 bg-red-50">
                           <DiffValue value={diff.oldValue} />
                         </div>
                       </div>
@@ -1429,7 +1459,7 @@
                         <p className="text-xs text-green-600 font-semibold mb-1">
                           B (New Value)
                         </p>
-                        <div className="border border-green-200 rounded-md p-2">
+                        <div className="border border-green-200 rounded-md p-2 bg-green-50">
                           <DiffValue value={diff.newValue} />
                         </div>
                       </div>
@@ -1440,7 +1470,7 @@
                       <p className="text-xs text-green-600 font-semibold mb-1">
                         Added in B
                       </p>
-                      <div className="border border-green-200 rounded-md p-2">
+                      <div className="border border-green-200 rounded-md p-2 bg-green-50">
                         <DiffValue value={diff.value} />
                       </div>
                     </div>
@@ -1450,7 +1480,7 @@
                       <p className="text-xs text-red-600 font-semibold mb-1">
                         Removed from B
                       </p>
-                      <div className="border border-red-200 rounded-md p-2">
+                      <div className="border border-red-200 rounded-md p-2 bg-red-50">
                         <DiffValue value={diff.value} />
                       </div>
                     </div>
@@ -1550,7 +1580,7 @@
         ) {
           return (
             <div
-              className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-md"
+              className="bg-green-50 border-l-4 border-green-500 text-green-800 p-4 rounded-md shadow-sm"
               role="alert"
             >
               <p className="font-bold">No Differences Found</p>
@@ -1559,7 +1589,6 @@
           );
         }
 
-        // --- CHANGE 2: Added break-all to spans ---
         const renderCarrier = (carrier) => (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1 text-xs font-mono">
             <span className="break-all">Beam: {carrier.beam_id}</span>
@@ -1689,7 +1718,7 @@
           return (
             <div>
               <div
-                className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-md mb-6"
+                className="bg-green-50 border-l-4 border-green-500 text-green-800 p-4 rounded-md mb-6 shadow-sm"
                 role="alert"
               >
                 <p className="font-bold">No Differences Found</p>
@@ -1704,10 +1733,10 @@
           <div className="space-y-8">
             <div>
               <div className="flex items-center gap-4 mb-4">
-                <h3 className="text-2xl font-bold text-gray-800">
+                <h3 className="text-2xl font-bold text-mtn-blue">
                   Configuration A
                 </h3>
-                <span className="text-sm font-medium text-red-600 bg-red-100 px-2 py-1 rounded-full">
+                <span className="text-sm font-medium text-red-600 bg-red-100 px-3 py-1 rounded-full border border-red-200">
                   Old Value
                 </span>
               </div>
@@ -1718,10 +1747,10 @@
 
             <div>
               <div className="flex items-center gap-4 mb-4">
-                <h3 className="text-2xl font-bold text-gray-800">
+                <h3 className="text-2xl font-bold text-mtn-blue">
                   Configuration B
                 </h3>
-                <span className="text-sm font-medium text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                <span className="text-sm font-medium text-green-600 bg-green-100 px-3 py-1 rounded-full border border-green-200">
                   New Value
                 </span>
               </div>
@@ -2065,9 +2094,9 @@
                       onClick={() => handleTabClick(tab.id)}
                       className={`${
                         activeTab === tab.id
-                          ? 'border-primary text-primary'
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                      } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                          ? 'border-mtn-gold text-mtn-dark'
+                          : 'border-transparent text-gray-500 hover:text-mtn-blue hover:border-gray-300'
+                      } whitespace-nowrap py-4 px-1 border-b-4 font-bold text-sm transition-colors`}
                     >
                       {tab.label}
                     </button>
@@ -2097,12 +2126,12 @@
                         key={type.id + activeTab}
                         disabled={isDisabled}
                         onClick={() => setCurrentView(targetView)}
-                        className={`font-semibold py-2 px-4 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white ${
+                        className={`font-semibold py-2 px-4 rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-50 ${
                           isDisabled
                             ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                             : isActive
-                            ? 'bg-primary text-white shadow-md'
-                            : 'bg-white hover:bg-gray-100 text-gray-700 border border-gray-300'
+                            ? 'bg-mtn-blue text-white shadow-md transform scale-105'
+                            : 'bg-white hover:bg-mtn-pale-blue text-mtn-dark border border-gray-300'
                         }`}
                       >
                         {type.label}
@@ -2116,15 +2145,16 @@
         };
 
         return (
-          <div className="min-h-screen p-4 sm:p-6 lg:p-8">
+          <div className="min-h-screen p-4 sm:p-6 lg:p-8 bg-mtn-neutral">
             <div className="max-w-screen-xl mx-auto">
-              <header className="text-center mb-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+              {/* HEADER WITH GOLD LINE & LOGO FIX */}
+              <header className="text-center mb-8 pb-4 border-b-4 border-mtn-gold flex flex-col sm:flex-row items-center justify-center gap-4">
                 <img
                   src="https://raw.githubusercontent.com/pgarciafer/MTNblockagechart/main/logo.png"
                   alt="MTN Logo"
-                  className="h-12"
+                  className="h-12 mix-blend-multiply" 
                 />
-                <h1 className="text-3xl sm:text-4xl font-bold text-primary">
+                <h1 className="text-3xl sm:text-4xl font-bold text-mtn-blue drop-shadow-sm">
                   Modem Configuration Visualizer
                 </h1>
               </header>
@@ -2132,7 +2162,7 @@
               <main>
                 {isLoading && (
                   <div className="text-center py-12">
-                    <p className="text-lg text-primary animate-pulse">
+                    <p className="text-lg text-mtn-blue animate-pulse font-semibold">
                       Parsing configuration...
                     </p>
                   </div>
@@ -2154,7 +2184,7 @@
                     </div>
                     {error && (
                       <div
-                        className="mt-8 max-w-4xl mx-auto bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+                        className="mt-8 max-w-4xl mx-auto bg-red-50 border border-red-300 text-red-800 px-4 py-3 rounded-lg shadow-sm"
                         role="alert"
                       >
                         <strong className="font-bold">Error:</strong>
@@ -2193,14 +2223,14 @@
 
                       <button
                         onClick={() => handleReset('all')}
-                        className="w-full text-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-danger hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                        className="w-full text-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-danger hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
                       >
                         Reset All Configurations
                       </button>
 
                       {error && (
                         <div
-                          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+                          className="bg-red-50 border border-red-300 text-red-800 px-4 py-3 rounded-lg shadow-sm"
                           role="alert"
                         >
                           <strong className="font-bold">Error:</strong>
@@ -2216,7 +2246,7 @@
                       <div className="mt-8">
                         {renderView() || (
                           <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
-                            <h2 className="text-xl font-semibold text-gray-700">
+                            <h2 className="text-xl font-semibold text-mtn-blue">
                               Select a View
                             </h2>
                             <p className="mt-2 text-gray-500">
@@ -2240,4 +2270,3 @@
     </script>
   </body>
 </html>
-
