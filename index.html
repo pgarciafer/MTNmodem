@@ -4,30 +4,32 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Modem Configuration Visualizer</title>
-    <link
-      rel="icon"
-      href="https://raw.githubusercontent.com/pgarciafer/MTNmodem/main/Favicon-MTN.png"
-      type="image/png"
-    />
+    
+    <link rel="icon" href="https://pgarciafer.github.io/shared-design-system/icons/Favicon-MTN.png" type="image/png">
+
+    <link rel="stylesheet" href="https://pgarciafer.github.io/shared-design-system/css/style.css">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+      // 3. CONFIGURE TAILWIND TO USE YOUR SHARED CSS VARIABLES
+      // This ensures if you change style.css, the React app updates automatically.
       tailwind.config = {
         theme: {
           extend: {
             colors: {
               mtn: {
-                blue: '#1B5087',      // Main Blue - Sub Headers, CTAs
-                sky: '#58A0D4',       // Secondary Blue - Accents, Links
-                gold: '#EBB020',      // Golden Yellow - Highlights, Emphasis
-                dark: '#08192B',      // Dark Blue - Backgrounds
-                text: '#131517',      // Text - Body Copy
-                neutral: '#EFEFEF',   // Light Grey - Backgrounds
-                'pale-blue': '#D4E5F7',   // Light Blue - Accents
-                'pale-yellow': '#FBEFD0', // Light Yellow - Highlights
+                blue: 'var(--mtn-blue)',      // Maps to style.css
+                sky: 'var(--mtn-sky)',        // Maps to style.css
+                gold: 'var(--mtn-gold)',      // Maps to style.css
+                dark: 'var(--mtn-dark)',      // Maps to style.css
+                text: 'var(--mtn-text)',      // Maps to style.css
+                neutral: 'var(--mtn-neutral)',// Maps to style.css
+                'pale-blue': '#D4E5F7',       // Keeping specific app accents
+                'pale-yellow': '#FBEFD0', 
               },
               primary: {
-                DEFAULT: '#1B5087',
-                hover: '#08192B',
+                DEFAULT: 'var(--mtn-blue)',
+                hover: 'var(--mtn-dark)',
               },
               danger: '#dc3545',
               success: '#28a745',
@@ -68,19 +70,28 @@
             height: 8px;
         }
         ::-webkit-scrollbar-track {
-            background: #EFEFEF; 
+            background: var(--mtn-neutral); 
         }
         ::-webkit-scrollbar-thumb {
-            background: #58A0D4; 
+            background: var(--mtn-sky); 
             border-radius: 4px;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: #1B5087; 
+            background: var(--mtn-blue); 
         }
     </style>
   </head>
-  <body class="bg-mtn-neutral text-mtn-text font-sans antialiased min-h-screen">
-    <div id="root"></div>
+  <body class="bg-mtn-neutral text-mtn-text font-sans antialiased min-h-screen flex flex-col">
+    
+    <header class="shared-header px-6 pt-6">
+      <a href="https://www.mtnsat.com" target="_blank">
+        <img src="https://pgarciafer.github.io/shared-design-system/icons/logo.png" alt="MTN Logo">
+      </a>
+      <h1>Modem Configuration Visualizer</h1>
+    </header>
+
+    <div id="root" class="flex-grow"></div>
+
     <script type="text/babel" data-type="module">
       import React, {
         useState,
@@ -218,14 +229,14 @@
           border: 'border-mtn-blue',
           text: 'text-mtn-blue',
           led: 'bg-mtn-blue shadow-[0_0_5px_1px_rgba(27,80,135,0.7)]',
-          hex: '#1B5087',
+          hex: 'var(--mtn-blue)', // Updated to Var
         },
         '900': {
           bg: 'bg-blue-50',
           border: 'border-mtn-sky',
           text: 'text-mtn-blue',
           led: 'bg-mtn-sky shadow-[0_0_5px_1px_rgba(88,160,212,0.7)]',
-          hex: '#58A0D4',
+          hex: 'var(--mtn-sky)', // Updated to Var
         },
         default: {
           bg: 'bg-gray-100',
@@ -236,9 +247,10 @@
         },
       };
 
+      // 5. UPDATE IMAGE SOURCE FOR REACT COMPONENT
       const LanPortIcon = ({ className }) => (
         <img
-          src="https://raw.githubusercontent.com/pgarciafer/MTNmodem/main/lanport.png"
+          src="https://pgarciafer.github.io/shared-design-system/icons/lanport.png"
           alt="LAN Port"
           className={className}
         />
@@ -2147,17 +2159,7 @@
         return (
           <div className="min-h-screen p-4 sm:p-6 lg:p-8 bg-mtn-neutral">
             <div className="max-w-screen-xl mx-auto">
-              {/* HEADER WITH GOLD LINE & LOGO FIX */}
-              <header className="text-center mb-8 pb-4 border-b-4 border-mtn-gold flex flex-col sm:flex-row items-center justify-center gap-4">
-                <img
-                  src="https://raw.githubusercontent.com/pgarciafer/MTNblockagechart/main/logo.png"
-                  alt="MTN Logo"
-                  className="h-12 mix-blend-multiply" 
-                />
-                <h1 className="text-3xl sm:text-4xl font-bold text-mtn-blue drop-shadow-sm">
-                  Modem Configuration Visualizer
-                </h1>
-              </header>
+              {/* OLD HEADER REMOVED FROM HERE */}
 
               <main>
                 {isLoading && (
