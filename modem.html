@@ -1,0 +1,2274 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Modem Configuration Visualizer</title>
+    
+    <link rel="icon" href="https://pgarciafer.github.io/shared-design-system/icons/Favicon-MTN.png" type="image/png">
+
+    <link rel="stylesheet" href="https://pgarciafer.github.io/shared-design-system/css/style.css">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // 3. CONFIGURE TAILWIND TO USE YOUR SHARED CSS VARIABLES
+      // This ensures if you change style.css, the React app updates automatically.
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              mtn: {
+                blue: 'var(--mtn-blue)',      // Maps to style.css
+                sky: 'var(--mtn-sky)',        // Maps to style.css
+                gold: 'var(--mtn-gold)',      // Maps to style.css
+                dark: 'var(--mtn-dark)',      // Maps to style.css
+                text: 'var(--mtn-text)',      // Maps to style.css
+                neutral: 'var(--mtn-neutral)',// Maps to style.css
+                'pale-blue': '#D4E5F7',       // Keeping specific app accents
+                'pale-yellow': '#FBEFD0', 
+              },
+              primary: {
+                DEFAULT: 'var(--mtn-blue)',
+                hover: 'var(--mtn-dark)',
+              },
+              danger: '#dc3545',
+              success: '#28a745',
+            },
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif'],
+            }
+          },
+        },
+      };
+    </script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+          "react/": "https://aistudiocdn.com/react@^19.2.0/",
+          "react": "https://aistudiocdn.com/react@^19.2.0"
+        }
+      }
+    </script>
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--mtn-neutral); 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--mtn-sky); 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--mtn-blue); 
+        }
+    </style>
+  </head>
+  <body class="bg-mtn-neutral text-mtn-text font-sans antialiased min-h-screen flex flex-col">
+    
+    <header class="shared-header px-6 pt-6">
+      <a href="https://www.mtnsat.com" target="_blank">
+        <img src="https://pgarciafer.github.io/shared-design-system/icons/logo.png" alt="MTN Logo">
+      </a>
+      <h1>Modem Configuration Visualizer</h1>
+    </header>
+
+    <div id="root" class="flex-grow"></div>
+
+    <script type="text/babel" data-type="module">
+      import React, {
+        useState,
+        useCallback,
+        useEffect,
+        useMemo,
+        useRef,
+      } from 'react';
+      import ReactDOM from 'react-dom/client';
+
+      // --- All components and logic ---
+
+      const handleAntimeridianCrossing = (points) => {
+        if (!points || points.length < 2) return points;
+
+        const unwrappedPoints = [[points[0][0], points[0][1]]];
+
+        for (let i = 1; i < points.length; i++) {
+          const prevLon = unwrappedPoints[i - 1][1];
+          const currentLat = points[i][0];
+          let currentLon = points[i][1];
+
+          if (prevLon - currentLon > 180) {
+            currentLon += 360;
+          } else if (currentLon - prevLon > 180) {
+            currentLon -= 360;
+          }
+
+          unwrappedPoints.push([currentLat, currentLon]);
+        }
+
+        return unwrappedPoints;
+      };
+
+      const FileUpload = ({
+        slotLabel,
+        onFileUpload,
+        fileName,
+        onReset,
+        setError,
+      }) => {
+        const handleFileChange = (event) => {
+          setError(null);
+          const files = event.target.files;
+          if (files && files.length > 0) {
+            onFileUpload(files);
+          }
+          event.target.value = '';
+        };
+
+        const handleDragOver = (event) => {
+          event.preventDefault();
+        };
+
+        const handleDrop = (event) => {
+          event.preventDefault();
+          setError(null);
+          const files = event.dataTransfer.files;
+          if (files && files.length > 0) {
+            onFileUpload(files);
+          }
+        };
+
+        if (fileName) {
+          return (
+            <div className="w-full mx-auto">
+              <h3 className="text-lg font-bold text-mtn-blue mb-2 text-center">
+                {slotLabel}
+              </h3>
+              <div className="relative w-full h-28 rounded-lg border border-mtn-sky/50 p-4 text-center bg-mtn-pale-blue shadow-sm flex flex-col justify-center">
+                <p
+                  className="text-sm font-medium text-mtn-dark truncate"
+                  title={fileName}
+                >
+                  {fileName}
+                </p>
+                <button
+                  onClick={onReset}
+                  className="absolute top-2 right-2 text-2xl font-bold text-mtn-sky hover:text-danger transition-colors"
+                >
+                  &times;
+                </button>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="w-full mx-auto">
+            <h3 className="text-lg font-bold text-mtn-blue mb-2 text-center">
+              {slotLabel}
+            </h3>
+            <label
+              htmlFor={`file-upload-${slotLabel}`}
+              className="relative block w-full h-28 rounded-lg border-2 border-dashed border-gray-300 p-4 text-center hover:border-mtn-sky hover:bg-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-mtn-blue/50 cursor-pointer bg-gray-50 transition-all flex flex-col justify-center items-center group"
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+            >
+              <svg
+                className="mx-auto h-10 w-10 text-gray-400 group-hover:text-mtn-sky transition-colors"
+                stroke="currentColor"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"
+                />
+              </svg>
+              <span className="mt-2 block text-sm font-medium text-gray-600 group-hover:text-mtn-blue">
+                Drop <span className="text-mtn-gold font-bold">.zip</span> or{' '}
+                <span className="text-mtn-gold font-bold">.json</span> file
+              </span>
+              <span className="mt-1 block text-xs text-gray-500">
+                or click to browse
+              </span>
+              <input
+                id={`file-upload-${slotLabel}`}
+                type="file"
+                multiple
+                accept=".zip,.json,application/zip,application/x-zip-compressed,application/json"
+                className="sr-only"
+                onChange={handleFileChange}
+              />
+            </label>
+          </div>
+        );
+      };
+
+      const vlanColorStyles = {
+        '1': {
+          bg: 'bg-mtn-pale-blue',
+          border: 'border-mtn-blue',
+          text: 'text-mtn-blue',
+          led: 'bg-mtn-blue shadow-[0_0_5px_1px_rgba(27,80,135,0.7)]',
+          hex: 'var(--mtn-blue)', // Updated to Var
+        },
+        '900': {
+          bg: 'bg-blue-50',
+          border: 'border-mtn-sky',
+          text: 'text-mtn-blue',
+          led: 'bg-mtn-sky shadow-[0_0_5px_1px_rgba(88,160,212,0.7)]',
+          hex: 'var(--mtn-sky)', // Updated to Var
+        },
+        default: {
+          bg: 'bg-gray-100',
+          border: 'border-gray-400',
+          text: 'text-gray-600',
+          led: 'bg-gray-500 shadow-[0_0_5px_1px_rgba(107,114,128,0.7)]',
+          hex: '#9ca3af',
+        },
+      };
+
+      // 5. UPDATE IMAGE SOURCE FOR REACT COMPONENT
+      const LanPortIcon = ({ className }) => (
+        <img
+          src="https://pgarciafer.github.io/shared-design-system/icons/lanport.png"
+          alt="LAN Port"
+          className={className}
+        />
+      );
+
+      const ModemSchematic = ({ config }) => {
+        const ports = config.SWITCH_PORT;
+        const vlanConfigs = config.VLAN_CONFIGURATIONS;
+        const sortedPorts = [...ports].sort(
+          (a, b) => a.port_number - b.port_number
+        );
+
+        const is8PortLayout = sortedPorts.length === 8;
+
+        const topRowPorts = is8PortLayout
+          ? sortedPorts.filter((p) => p.port_number % 2 === 0)
+          : [];
+        const bottomRowPorts = is8PortLayout
+          ? sortedPorts.filter((p) => p.port_number % 2 !== 0)
+          : sortedPorts;
+
+        const Port = ({ port }) => {
+          const vlanList = port.terminal_vid_list;
+          const isMultiVlan = vlanList.length > 1;
+
+          const ipAddressesInfo = vlanList.map((vlanId) => {
+            const vlanInfo = vlanConfigs.find((v) => v.vid === vlanId);
+            const ip = vlanInfo?.IP_INTERFACES?.[0]?.address || 'N/A';
+            return { vlan: vlanId, ip };
+          });
+          const vlanListString = vlanList.join(', ');
+
+          let portStyle = {};
+          let portClasses =
+            'group relative rounded-lg p-1 sm:p-2 border-2 text-center transition-all w-full flex flex-col justify-between items-center min-h-[5rem] sm:min-h-[6rem] hover:scale-105 hover:shadow-lg hover:border-mtn-gold';
+          let ledClasses = 'w-2 h-2 rounded-full animate-pulse';
+
+          if (isMultiVlan) {
+            const gradientColors = vlanList.map(
+              (vlan) =>
+                vlanColorStyles[vlan]?.hex || vlanColorStyles.default.hex
+            );
+
+            portStyle.background =
+              gradientColors.length > 1
+                ? `linear-gradient(45deg, ${gradientColors.join(', ')})`
+                : `solid ${gradientColors[0] || vlanColorStyles.default.hex}`;
+
+            portClasses += ' border-mtn-blue text-mtn-text';
+            ledClasses +=
+              ' bg-white shadow-[0_0_5px_1px_rgba(255,255,255,0.7)]';
+          } else {
+            const singleVlan = String(vlanList[0] || 'default');
+            const styles = vlanColorStyles[singleVlan] || vlanColorStyles.default;
+            portClasses += ` ${styles.bg} ${styles.border} ${styles.text}`;
+            ledClasses += ` ${styles.led}`;
+          }
+
+          return (
+            <div className={portClasses} style={portStyle}>
+              <div className="w-full flex justify-between items-center">
+                <div className={ledClasses}></div>
+                <div className="text-xs font-mono opacity-70">
+                  P{port.port_number}
+                </div>
+              </div>
+
+              <LanPortIcon className="w-8 h-8 sm:w-10 sm:h-10 my-1" />
+
+              <div className="text-xs sm:text-sm font-bold break-words">
+                {isMultiVlan ? 'VLANs' : 'VLAN'} {vlanListString}
+              </div>
+
+              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-max max-w-xs bg-mtn-dark text-white text-xs rounded-lg shadow-xl p-2 border border-mtn-blue opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10">
+                <dl className="space-y-1">
+                  {ipAddressesInfo.map(({ vlan, ip }) => (
+                    <div
+                      key={vlan}
+                      className="flex justify-between items-start gap-4"
+                    >
+                      <dt className="text-gray-300 flex-shrink-0">
+                        VLAN {vlan} IP:
+                      </dt>
+                      <dd className="font-semibold font-mono text-mtn-gold">{ip}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <div className="absolute left-1/2 -translate-x-1/2 bottom-[-4px] w-2 h-2 bg-mtn-dark transform rotate-45 border-b border-r border-mtn-blue"></div>
+              </div>
+            </div>
+          );
+        };
+
+        return (
+          <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm border border-gray-200">
+            <h2 className="text-xl font-bold text-mtn-blue mb-4 border-b border-gray-100 pb-2">
+              Modem Schematic
+            </h2>
+            <div className="bg-mtn-neutral/50 rounded-lg p-2 sm:p-4 border border-gray-200">
+              <div className="flex flex-col justify-center gap-2 md:gap-4 w-full">
+                {is8PortLayout && (
+                  <div className="grid grid-cols-4 gap-1 sm:gap-2 md:gap-4">
+                    {topRowPorts.map((port) => (
+                      <Port key={port.port_number} port={port} />
+                    ))}
+                  </div>
+                )}
+                <div className="grid grid-cols-4 gap-1 sm:gap-2 md:gap-4">
+                  {bottomRowPorts.map((port) => (
+                    <Port key={port.port_number} port={port} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      const DetailItem = ({ label, value, className = '' }) => (
+        <div
+          className={`flex justify-between items-start py-2 border-b border-gray-100 ${className}`}
+        >
+          <dt className="text-sm text-gray-500 truncate pr-2">{label}</dt>
+          <dd className="text-sm font-semibold text-mtn-text text-right break-all">
+            {value}
+          </dd>
+        </div>
+      );
+
+      const StatusPill = ({ enabled }) =>
+        enabled ? (
+          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 border border-green-200">
+            Enabled
+          </span>
+        ) : (
+          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800 border border-red-200">
+            Disabled
+          </span>
+        );
+
+      const DhcpDetails = ({ dhcpConfig }) => (
+        <>
+          <h4 className="font-semibold text-mtn-sky mt-4 mb-2 uppercase text-xs tracking-wider">
+            DHCPv4 Configuration
+          </h4>
+          <dl>
+            <DetailItem
+              label="Status"
+              value={<StatusPill enabled={dhcpConfig.dhcp_enable === 1} />}
+            />
+            <DetailItem
+              label="Gateway"
+              value={
+                <code className="text-sm">{dhcpConfig.dhcp_gateway_ip}</code>
+              }
+            />
+            <DetailItem
+              label="Subnet"
+              value={<code className="text-sm">{dhcpConfig.dhcp_subnet}</code>}
+            />
+            <DetailItem
+              label="Netmask"
+              value={<code className="text-sm">{dhcpConfig.dhcp_netmask}</code>}
+            />
+            <DetailItem
+              label="Lease Range"
+              value={
+                <code className="text-sm">{dhcpConfig.dhcp_lease_range}</code>
+              }
+            />
+            <DetailItem
+              label="Primary DNS"
+              value={
+                <code className="text-sm">
+                  {dhcpConfig.dhcp_primary_dns_address}
+                </code>
+              }
+            />
+            <DetailItem
+              label="Secondary DNS"
+              value={
+                <code className="text-sm">
+                  {dhcpConfig.dhcp_secondary_dns_address}
+                </code>
+              }
+            />
+          </dl>
+        </>
+      );
+
+      const VlanCard = ({ vlanConfig }) => (
+        <div className="bg-white rounded-lg p-4 sm:p-6 shadow-md border-t-4 border-t-mtn-blue border-l border-r border-b border-gray-200 hover:shadow-lg transition-shadow">
+          <h3 className="text-lg font-bold text-mtn-blue mb-3 flex items-center">
+            VLAN <span className="ml-2 bg-mtn-blue text-white px-2 py-0.5 rounded text-sm">{vlanConfig.vid}</span>
+          </h3>
+
+          <h4 className="font-semibold text-mtn-sky mb-2 uppercase text-xs tracking-wider">IP Interfaces</h4>
+          {vlanConfig.IP_INTERFACES.map((iface, index) => (
+            <div key={index} className="bg-mtn-neutral/50 p-3 rounded-md mb-2 border border-gray-100">
+              <dl>
+                <DetailItem
+                  label="Interface"
+                  value={iface.interface}
+                  className="border-none py-1"
+                />
+                <DetailItem
+                  label="Address"
+                  value={<code className="text-sm text-mtn-dark font-bold">{iface.address}</code>}
+                  className="border-none py-1"
+                />
+                <DetailItem
+                  label="Netmask"
+                  value={<code className="text-sm">{iface.netmask}</code>}
+                  className="border-none py-1"
+                />
+                <DetailItem
+                  label="Gateway"
+                  value={<code className="text-sm">{iface.gateway}</code>}
+                  className="border-none py-1"
+                />
+              </dl>
+            </div>
+          ))}
+
+          {vlanConfig.DHCPV4 && <DhcpDetails dhcpConfig={vlanConfig.DHCPV4} />}
+        </div>
+      );
+
+      const ConfigurationSummary = ({ config }) => {
+        return (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm border border-gray-200">
+              <h3 className="text-lg font-bold text-mtn-blue mb-3 border-b border-gray-100 pb-2">
+                General Information
+              </h3>
+              <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                <DetailItem label="Element Type" value={config.NMS.type} />
+                <DetailItem label="Element ID" value={config.NMS.element_id} />
+                <DetailItem
+                  label="Parent ID"
+                  value={config.NMS.element_parent_id}
+                />
+                <DetailItem
+                  label="L2 Switch Enabled"
+                  value={<StatusPill enabled={config.L2SW.enabled === 1} />}
+                />
+              </dl>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {config.VLAN_CONFIGURATIONS.sort((a, b) => a.vid - b.vid).map(
+                (vlanConfig) => (
+                  <VlanCard key={vlanConfig.vid} vlanConfig={vlanConfig} />
+                )
+              )}
+            </div>
+          </div>
+        );
+      };
+
+      const CollapsibleCard = ({
+        title,
+        children,
+        defaultOpen = false,
+        className = '',
+      }) => {
+        const [isOpen, setIsOpen] = useState(defaultOpen);
+
+        return (
+          <div
+            className={`bg-white rounded-lg shadow-sm border border-gray-200 ${className}`}
+          >
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="w-full flex justify-between items-center p-4 text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-mtn-sky/50 hover:bg-gray-50 transition-colors rounded-t-lg"
+              aria-expanded={isOpen}
+            >
+              <h3 className="text-lg font-bold text-mtn-blue">{title}</h3>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className={`h-6 w-6 transform transition-transform duration-200 text-mtn-gold ${
+                  isOpen ? 'rotate-180' : ''
+                }`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </button>
+            {isOpen && (
+              <div className="p-4 pt-0">
+                <div className="border-t border-gray-100 pt-4">{children}</div>
+              </div>
+            )}
+          </div>
+        );
+      };
+
+      const KeyInformation = ({ config }) => {
+        const [keyInfo, setKeyInfo] = useState([]);
+
+        useEffect(() => {
+          if (!config) return;
+
+          const findKeyInfo = (data) => {
+            const info = [];
+            const searchTerms = {
+              Model: /(^|_)model(_| |)type$/i,
+              'Serial Number': /(^|_)serial(_number|\s+number|)?$|sn$/i,
+            };
+
+            const traverse = (obj) => {
+              if (obj === null || typeof obj !== 'object') return;
+              for (const key in obj) {
+                if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                  const value = obj[key];
+                  for (const label in searchTerms) {
+                    if (
+                      searchTerms[label].test(key) &&
+                      (typeof value === 'string' || typeof value === 'number') &&
+                      value
+                    ) {
+                      if (!info.some((i) => i.label === label)) {
+                        info.push({ label, value: String(value) });
+                      }
+                    }
+                  }
+                  if (
+                    key.toUpperCase() === 'AIM' &&
+                    typeof value === 'object' &&
+                    value !== null
+                  ) {
+                    for (const aimKey in value) {
+                      if (/ip|address/i.test(aimKey) && value[aimKey]) {
+                        const addressValue = String(value[aimKey]);
+                        const parts = addressValue.split(';').map((p) => p.trim());
+                        const ipPart = parts.find((p) =>
+                          /\d+\.\d+\.\d+\.\d+/.test(p)
+                        );
+                        const portPart = parts.find(
+                          (p) =>
+                            /^\d+$/.test(p) &&
+                            p !== ipPart &&
+                            parseInt(p, 10) > 0
+                        );
+                        if (ipPart) {
+                          const finalValue = portPart
+                            ? `${ipPart}:${portPart}`
+                            : ipPart;
+                          if (!info.some((i) => i.label === 'AIM Address')) {
+                            info.push({
+                              label: 'AIM Address',
+                              value: finalValue,
+                            });
+                          }
+                          break;
+                        }
+                      }
+                    }
+                  }
+                  if (typeof value === 'object') {
+                    traverse(value);
+                  }
+                }
+              }
+            };
+            traverse(data);
+            return info;
+          };
+
+          const findKeyDeep = (obj, keyToFind) => {
+            let result = null;
+            function recurse(currentObj) {
+              if (
+                result ||
+                currentObj === null ||
+                typeof currentObj !== 'object'
+              ) {
+                return;
+              }
+              if (Object.prototype.hasOwnProperty.call(currentObj, keyToFind)) {
+                result = currentObj[keyToFind];
+                return;
+              }
+              for (const key in currentObj) {
+                if (Object.prototype.hasOwnProperty.call(currentObj, key)) {
+                  recurse(currentObj[key]);
+                }
+              }
+            }
+            recurse(obj);
+            return result;
+          };
+
+          const rawInfo = findKeyInfo(config);
+          const uniqueInfo = Array.from(
+            new Map(rawInfo.map((item) => [item.label, item])).values()
+          );
+          const modelInfo = uniqueInfo.find((item) => item.label === 'Model');
+          const snInfo = uniqueInfo.find(
+            (item) => item.label === 'Serial Number'
+          );
+          const otherInfo = uniqueInfo.filter(
+            (item) => item.label !== 'Model' && item.label !== 'Serial Number'
+          );
+
+          const combinedInfo = [];
+          if (modelInfo && snInfo) {
+            combinedInfo.push({
+              label: 'Device',
+              value: `${modelInfo.value} (SN: ${snInfo.value})`,
+            });
+          } else if (modelInfo) {
+            combinedInfo.push({ label: 'Device', value: modelInfo.value });
+          } else if (snInfo) {
+            combinedInfo.push({
+              label: 'Serial Number',
+              value: snInfo.value,
+            });
+          }
+
+          const rfInfo = [];
+          const bucConfig = findKeyDeep(config, 'BUC');
+          const lnbConfig = findKeyDeep(config, 'LNB');
+
+          if (bucConfig && typeof bucConfig === 'object') {
+            const bucDetails = [
+              bucConfig.buc_rated_power
+                ? `${bucConfig.buc_rated_power}W`
+                : null,
+              bucConfig.lo_freq ? `LO: ${bucConfig.lo_freq} MHz` : null,
+              bucConfig.start_freq && bucConfig.stop_freq
+                ? `Freq: ${bucConfig.start_freq}-${bucConfig.stop_freq} MHz`
+                : null,
+              'odu_tx_dc_power_enable' in bucConfig
+                ? `DC: ${bucConfig.odu_tx_dc_power_enable === 1 ? 'ON' : 'OFF'}`
+                : null,
+              'odu_tx_reference_clock' in bucConfig
+                ? `10MHz: ${
+                    bucConfig.odu_tx_reference_clock === 10 ? 'ON' : 'OFF'
+                  }`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(' | ');
+            if (bucDetails) {
+              rfInfo.push({ label: 'BUC', value: bucDetails });
+            }
+          }
+
+          if (Array.isArray(lnbConfig)) {
+            const validLnbs = lnbConfig.filter(
+              (lnb) => lnb && typeof lnb === 'object'
+            );
+            if (validLnbs.length > 0) {
+              validLnbs.forEach((lnb, index) => {
+                const lnbDetails = [
+                  'lnb_dc_voltage' in lnb ? `${lnb.lnb_dc_voltage}V` : null,
+                  'lnb_tone_enable' in lnb
+                    ? lnb.lnb_tone_enable === 1
+                      ? '22KHz Tone ON'
+                      : '0KHz Tone OFF'
+                    : null,
+                  'lo_freq' in lnb ? `LO: ${lnb.lo_freq} MHz` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' | ');
+
+                if (lnbDetails) {
+                  const label =
+                    validLnbs.length > 1
+                      ? `LNB ${index + 1}`
+                      : 'LNB';
+                  rfInfo.push({ label, value: lnbDetails });
+                }
+              });
+            }
+          }
+          setKeyInfo([...combinedInfo, ...otherInfo, ...rfInfo]);
+        }, [config]);
+
+        if (keyInfo.length === 0) {
+          return null;
+        }
+
+        return (
+          <div className="bg-gradient-to-br from-mtn-blue to-mtn-dark rounded-lg p-6 shadow-md border border-mtn-blue text-white">
+            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-x-2 border-b border-white/20 pb-2">
+              Key Information
+            </h3>
+            <dl>
+              {keyInfo.map(({ label, value }) => (
+                <div
+                  key={label}
+                  className="flex flex-col sm:flex-row sm:justify-between sm:items-start py-2 border-b border-white/10 last:border-b-0"
+                >
+                  <dt className="text-xs text-mtn-sky font-semibold truncate pr-2 uppercase tracking-wide">
+                    {label}
+                  </dt>
+                  <dd className="text-xs font-semibold text-white sm:text-right font-mono break-all">
+                    {value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        );
+      };
+
+      const OptConfigurationSummary = ({ config }) => {
+        if (
+          !config ||
+          typeof config !== 'object' ||
+          Object.keys(config).length === 0
+        ) {
+          return (
+            <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 text-center">
+              <h3 className="text-lg font-bold text-gray-500 mb-2">
+                No Data to Display
+              </h3>
+              <p className="text-gray-500">
+                The configuration file is empty or could not be parsed as a
+                valid object.
+              </p>
+            </div>
+          );
+        }
+
+        const renderValue = (value) => {
+          if (typeof value === 'boolean') return <StatusPill enabled={value} />;
+          if (value === null)
+            return <code className="text-sm text-gray-500">null</code>;
+          if (Array.isArray(value)) {
+            if (
+              value.every((item) => typeof item !== 'object' || item === null)
+            ) {
+              return <code className="text-sm break-all">{value.join(', ')}</code>;
+            }
+            return (
+              <div className="space-y-2">
+                {value.map((item, index) => (
+                  <div key={index} className="bg-mtn-neutral p-3 rounded-md border border-gray-200">
+                    <pre className="text-xs text-mtn-text overflow-x-auto whitespace-pre-wrap break-all">
+                      {JSON.stringify(item, null, 2)}
+                    </pre>
+                  </div>
+                ))}
+              </div>
+            );
+          }
+          if (typeof value === 'object') {
+            return (
+              <pre className="mt-1 text-left bg-mtn-neutral p-3 rounded-md overflow-x-auto text-xs text-mtn-text whitespace-pre-wrap break-all border border-gray-200">
+                {JSON.stringify(value, null, 2)}
+              </pre>
+            );
+          }
+          return <code className="text-sm break-all font-mono text-mtn-dark">{String(value)}</code>;
+        };
+
+        const renderDetailItem = (key, value) => {
+          const formattedKey = key
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, (l) => l.toUpperCase());
+          const isBlock = typeof value === 'object' && value !== null;
+
+          if (isBlock) {
+            return (
+              <div key={key} className="py-2 border-b border-gray-100">
+                <dt className="text-sm text-gray-500 font-medium">{formattedKey}</dt>
+                <dd className="mt-1">{renderValue(value)}</dd>
+              </div>
+            );
+          }
+          return (
+            <DetailItem
+              key={key}
+              label={formattedKey}
+              value={renderValue(value)}
+            />
+          );
+        };
+
+        const entries = Object.entries(config);
+        const objectEntries = entries.filter(
+          ([, v]) => typeof v === 'object' && v !== null && !Array.isArray(v)
+        );
+        const arrayEntries = entries.filter(([, v]) => Array.isArray(v));
+        const primitiveEntries = entries.filter(
+          ([, v]) => typeof v !== 'object' || v === null
+        );
+
+        return (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {primitiveEntries.length > 0 && (
+                <CollapsibleCard
+                  title="General Parameters"
+                  defaultOpen={true}
+                  className="md:col-span-1"
+                >
+                  <dl>
+                    {primitiveEntries.map(([key, value]) =>
+                      renderDetailItem(key, value)
+                    )}
+                  </dl>
+                </CollapsibleCard>
+              )}
+              {objectEntries.map(([key, value]) => {
+                const formattedTitle = key
+                  .replace(/_/g, ' ')
+                  .replace(/\b\w/g, (l) => l.toUpperCase());
+                return (
+                  <CollapsibleCard
+                    key={key}
+                    title={formattedTitle}
+                    className="md:col-span-1"
+                  >
+                    <dl>
+                      {Object.entries(value).map(([subKey, subValue]) =>
+                        renderDetailItem(subKey, subValue)
+                      )}
+                    </dl>
+                  </CollapsibleCard>
+                );
+              })}
+            </div>
+            {arrayEntries.length > 0 && (
+              <div className="space-y-6">
+                {arrayEntries.map(([key, value]) => {
+                  const formattedTitle = key
+                    .replace(/_/g, ' ')
+                    .replace(/\b\w/g, (l) => l.toUpperCase());
+                  return (
+                    <CollapsibleCard key={key} title={formattedTitle}>
+                      {renderValue(value)}
+                    </CollapsibleCard>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      };
+
+      const BeamSummaryDetails = ({ selectedBeam, formatLongitude }) => (
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+          <h3 className="text-lg font-bold text-mtn-blue mb-3 border-b border-gray-100 pb-1">Beam Summary</h3>
+          <dl>
+            <DetailItem
+              label="Satellite Name"
+              value={selectedBeam.satellite_name}
+            />
+            <DetailItem
+              label="Satellite Longitude"
+              value={formatLongitude(selectedBeam.satellite_longitude)}
+            />
+            <DetailItem label="Beam ID" value={selectedBeam.beam_id} />
+            {selectedBeam.carriers &&
+              selectedBeam.carriers.map((carrier, index) => (
+                <React.Fragment key={index}>
+                  <div className="pt-2 mt-2 border-t border-gray-200">
+                    <DetailItem
+                      label={`Polarization`}
+                      value={carrier.polarization}
+                      className="border-none"
+                    />
+                    <DetailItem
+                      label={`Center Freq`}
+                      value={`${(carrier.center_freq / 1000).toFixed(2)} KHz`}
+                      className="border-none"
+                    />
+                    <DetailItem
+                      label={`Symbol Rate`}
+                      value={carrier.symbol_rate}
+                      className="border-none"
+                    />
+                  </div>
+                </React.Fragment>
+              ))}
+          </dl>
+        </div>
+      );
+
+      const ConstellationVisualizer = ({ config, formatLongitude }) => {
+        const [searchTerm, setSearchTerm] = useState('');
+        const [isResultsOpen, setIsResultsOpen] = useState(false);
+        const [selectedLongitude, setSelectedLongitude] = useState('');
+        const [selectedBeamId, setSelectedBeamId] = useState(null);
+
+        const mapRef = useRef(null);
+        const beamsDataRef = useRef({});
+        const layersRef = useRef({});
+
+        useEffect(() => {
+          const mapContainer = document.getElementById('map');
+          if (mapContainer && mapContainer._leaflet_id) {
+            return;
+          }
+
+          const map = L.map('map', {
+            worldCopyJump: true,
+          }).setView([0, 0], 2);
+
+          L.tileLayer(
+            'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+            {
+              attribution:
+                '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+              subdomains: 'abcd',
+              maxZoom: 20,
+            }
+          ).addTo(map);
+
+          mapRef.current = map;
+
+          return () => {
+            if (mapRef.current) {
+              mapRef.current.remove();
+              mapRef.current = null;
+            }
+          };
+        }, []);
+
+        useEffect(() => {
+          if (mapRef.current) {
+            setTimeout(() => {
+              mapRef.current.invalidateSize();
+            }, 100);
+          }
+        });
+
+        const { satelliteGroups } = useMemo(() => {
+          if (!config?.CONSTELLATION?.SATELLITES)
+            return { satelliteGroups: {} };
+
+          const filteredSatellites = config.CONSTELLATION.SATELLITES.filter(
+            (s) =>
+              s.satellite_id &&
+              !String(s.satellite_id).toLowerCase().startsWith('test')
+          );
+
+          const groups = filteredSatellites.reduce((acc, satellite) => {
+            const lon = satellite.longitude;
+            if (!acc[lon]) {
+              acc[lon] = { names: new Set(), beams: [] };
+            }
+            acc[lon].names.add(satellite.satellite_id);
+
+            if (satellite.BEAM && satellite.CARRIER) {
+              satellite.BEAM.forEach((beam) => {
+                const carriers = satellite.CARRIER.filter(
+                  (c) => c.beam_id === beam.beam_id
+                );
+                if (carriers.length > 0) {
+                  acc[lon].beams.push({
+                    ...beam,
+                    uniqueId: `${satellite.satellite_id}-${beam.beam_id}`,
+                    satellite_name: satellite.satellite_id,
+                    satellite_longitude: satellite.longitude,
+                    carriers: carriers,
+                  });
+                }
+              });
+            }
+            return acc;
+          }, {});
+
+          Object.values(groups).forEach((group) => {
+            group.beams.sort((a, b) => a.beam_id - b.beam_id);
+          });
+
+          return { satelliteGroups: groups };
+        }, [config]);
+
+        const filteredSatelliteGroups = useMemo(() => {
+          if (!searchTerm) {
+            return satelliteGroups;
+          }
+          const lowerCaseSearch = searchTerm.toLowerCase();
+          const filtered = {};
+
+          for (const lon in satelliteGroups) {
+            const group = satelliteGroups[lon];
+            const namesMatch = Array.from(group.names).some((name) =>
+              name.toLowerCase().includes(lowerCaseSearch)
+            );
+            const lonString = String(lon);
+            const formattedLon = formatLongitude(parseFloat(lon)).toLowerCase();
+            const lonMatch =
+              lonString.includes(lowerCaseSearch) ||
+              formattedLon.includes(lowerCaseSearch);
+
+            if (namesMatch || lonMatch) {
+              filtered[lon] = group;
+            }
+          }
+          return filtered;
+        }, [searchTerm, satelliteGroups, formatLongitude]);
+
+        useEffect(() => {
+          const map = mapRef.current;
+          if (!config || !map) return;
+
+          Object.values(layersRef.current).forEach((layer) => {
+            if (map.hasLayer(layer)) {
+              map.removeLayer(layer);
+            }
+          });
+          layersRef.current = {};
+          beamsDataRef.current = {};
+
+          const allBeams = {};
+          const filteredSatellites = config.CONSTELLATION.SATELLITES.filter(
+            (s) =>
+              s.satellite_id &&
+              !String(s.satellite_id).toLowerCase().startsWith('test')
+          );
+
+          filteredSatellites.forEach((satellite) => {
+            if (satellite.BEAM && satellite.CARRIER) {
+              satellite.BEAM.forEach((beam) => {
+                const carriers = satellite.CARRIER.filter(
+                  (c) => c.beam_id === beam.beam_id
+                );
+                if (carriers.length > 0) {
+                  const uniqueId = `${satellite.satellite_id}-${beam.beam_id}`;
+                  allBeams[uniqueId] = {
+                    ...beam,
+                    uniqueId: uniqueId,
+                    satellite_name: satellite.satellite_id,
+                    satellite_longitude: satellite.longitude,
+                    carriers: carriers,
+                  };
+                }
+              });
+            }
+          });
+          beamsDataRef.current = allBeams;
+
+          const newLayers = {};
+          Object.values(allBeams).forEach((beamData) => {
+            // Update beam colors to MTN Gold/Yellow
+            const style = {
+              color: '#EBB020', // mtn-gold
+              weight: 2,
+              opacity: 0.8,
+              fillColor: '#FBEFD0', // mtn-pale-yellow
+              fillOpacity: 0.4,
+            };
+            let originalGeometryLayer = null;
+            const allGeometries = [];
+
+            (beamData.CONTOUR || []).forEach((contour) => {
+              if (contour.type === 1 && contour.points) {
+                const validPoints = contour.points.filter(
+                  (p) =>
+                    Array.isArray(p) &&
+                    p.length === 2 &&
+                    !isNaN(p[0]) &&
+                    !isNaN(p[1])
+                );
+                if (validPoints.length < 3) return;
+
+                const antimeridianFixedPoints =
+                  handleAntimeridianCrossing(validPoints);
+
+                const createPolygon = (points, shift) =>
+                  L.polygon(
+                    points.map((p) => [p[0], p[1] + shift]),
+                    style
+                  );
+
+                if (!originalGeometryLayer)
+                  originalGeometryLayer = createPolygon(antimeridianFixedPoints, 0);
+                allGeometries.push(
+                  createPolygon(antimeridianFixedPoints, 0),
+                  createPolygon(antimeridianFixedPoints, -360),
+                  createPolygon(antimeridianFixedPoints, 360)
+                );
+              } else if (contour.type === 0 && contour.center && contour.radius) {
+                const center = [contour.center[0], contour.center[1]];
+                const radius = contour.radius * 1000;
+                if (radius > 0) {
+                  const createCircle = (center, shift) =>
+                    L.circle([center[0], center[1] + shift], {
+                      ...style,
+                      radius,
+                    });
+                  if (!originalGeometryLayer)
+                    originalGeometryLayer = createCircle(center, 0);
+                  allGeometries.push(
+                    createCircle(center, 0),
+                    createCircle(center, -360),
+                    createCircle(center, 360)
+                  );
+                }
+              }
+            });
+
+            if (allGeometries.length > 0) {
+              const group = L.featureGroup(allGeometries);
+              if (originalGeometryLayer) {
+                group.originalBounds = originalGeometryLayer.getBounds();
+              }
+              newLayers[beamData.uniqueId] = group;
+            }
+          });
+
+          layersRef.current = newLayers;
+          setSelectedLongitude('');
+          setSelectedBeamId(null);
+        }, [config]);
+
+        useEffect(() => {
+          const map = mapRef.current;
+          const currentLayers = layersRef.current;
+          if (!map || !currentLayers) return;
+
+          Object.values(currentLayers).forEach((layer) => {
+            if (map.hasLayer(layer)) {
+              map.removeLayer(layer);
+            }
+          });
+
+          const selectedLayer = currentLayers[selectedBeamId];
+
+          if (selectedLayer) {
+            selectedLayer.addTo(map);
+            if (
+              selectedLayer.originalBounds &&
+              selectedLayer.originalBounds.isValid()
+            ) {
+              map.fitBounds(selectedLayer.originalBounds, {
+                padding: [50, 50],
+                maxZoom: 5,
+              });
+            } else {
+              try {
+                const bounds = selectedLayer.getBounds();
+                if (bounds.isValid()) {
+                  map.fitBounds(bounds, { padding: [50, 50], maxZoom: 5 });
+                }
+              } catch (e) {
+                console.error('Could not get bounds for layer', e);
+              }
+            }
+          }
+        }, [selectedBeamId]);
+
+        const selectedGroup = satelliteGroups[selectedLongitude];
+        const selectedBeam = beamsDataRef.current[selectedBeamId] || null;
+
+        return (
+          <div className="space-y-6">
+            <div className="max-w-md space-y-2">
+              <label
+                htmlFor="satellite-search"
+                className="block text-sm font-medium text-mtn-blue"
+              >
+                Search Satellite
+              </label>
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                  <svg
+                    className="h-5 w-5 text-gray-400"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  id="satellite-search"
+                  autoComplete="off"
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setSelectedLongitude('');
+                    setSelectedBeamId(null);
+                    setIsResultsOpen(true);
+                  }}
+                  onFocus={(e) => {
+                    setIsResultsOpen(true);
+                    e.target.select();
+                  }}
+                  onBlur={() => {
+                    setTimeout(() => setIsResultsOpen(false), 200);
+                  }}
+                  placeholder="Search by name or longitude..."
+                  className="block w-full rounded-md border-gray-300 bg-white text-mtn-text pl-10 py-2 shadow-sm focus:border-mtn-blue focus:ring-mtn-blue sm:text-sm"
+                />
+                {isResultsOpen && (
+                  <div className="absolute z-[1001] mt-1 w-full max-h-60 overflow-y-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                    {Object.entries(filteredSatelliteGroups).length > 0 ? (
+                      Object.entries(filteredSatelliteGroups)
+                        .sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
+                        .map(([lon, group]) => {
+                          const displayText = `${Array.from(group.names).join(
+                            ' / '
+                          )} (${formatLongitude(parseFloat(lon))})`;
+                          return (
+                            <button
+                              key={lon}
+                              onMouseDown={() => {
+                                setSelectedLongitude(lon);
+                                setSearchTerm(displayText);
+                                setIsResultsOpen(false);
+                                setSelectedBeamId(null);
+                              }}
+                              className="w-full text-left cursor-pointer select-none relative py-2 pl-3 pr-9 text-mtn-text hover:bg-mtn-blue hover:text-white"
+                            >
+                              {displayText}
+                            </button>
+                          );
+                        })
+                    ) : (
+                      <div className="cursor-default select-none relative py-2 px-4 text-gray-700">
+                        No results found.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-col md:flex-row gap-6">
+              <div className="md:w-1/2 space-y-6">
+                {selectedGroup && (
+                  <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                    <h3 className="text-lg font-bold text-mtn-blue mb-3">
+                      Available Beams
+                    </h3>
+                    <div className="max-h-60 overflow-y-auto pr-2 space-y-2">
+                      {selectedGroup.beams.map((beam) => (
+                        <button
+                          key={beam.uniqueId}
+                          onClick={() => setSelectedBeamId(beam.uniqueId)}
+                          className={`w-full text-left p-2 rounded-md transition-colors ${
+                            selectedBeamId === beam.uniqueId
+                              ? 'bg-mtn-pale-blue text-mtn-blue border border-mtn-sky'
+                              : 'hover:bg-mtn-neutral border border-transparent'
+                          }`}
+                        >
+                          <span className="font-semibold">
+                            Beam ID: {beam.beam_id}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {selectedBeam && (
+                  <BeamSummaryDetails
+                    selectedBeam={selectedBeam}
+                    formatLongitude={formatLongitude}
+                  />
+                )}
+              </div>
+              <div className="md:w-1/2 min-h-[24rem]">
+                <div
+                  id="map"
+                  className="w-full h-96 md:h-full rounded-lg bg-gray-200 border border-gray-300 shadow-lg"
+                ></div>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      const deepSortObject = (obj) => {
+        if (typeof obj !== 'object' || obj === null) {
+          return obj;
+        }
+
+        if (Array.isArray(obj)) {
+          const sortedArray = obj.map(deepSortObject);
+
+          if (
+            sortedArray.length > 0 &&
+            typeof sortedArray[0] === 'object' &&
+            sortedArray[0] !== null
+          ) {
+            const keyCandidates = [
+              'id',
+              'vid',
+              'port_number',
+              'satellite_id',
+              'beam_id',
+              'terminal_vid',
+            ];
+
+            const sortKey = keyCandidates.find((key) =>
+              sortedArray.every(
+                (item) =>
+                  item && typeof item === 'object' && item.hasOwnProperty(key)
+              )
+            );
+
+            if (sortKey) {
+              sortedArray.sort((a, b) => {
+                if (a[sortKey] < b[sortKey]) return -1;
+                if (a[sortKey] > b[sortKey]) return 1;
+                return 0;
+              });
+            }
+          }
+          return sortedArray;
+        }
+
+        return Object.keys(obj)
+          .sort()
+          .reduce((result, key) => {
+            result[key] = deepSortObject(obj[key]);
+            return result;
+          }, {});
+      };
+
+      const deepDiff = (obj1, obj2, path = '') => {
+        const diff = [];
+        const allKeys = new Set([
+          ...Object.keys(obj1 || {}),
+          ...Object.keys(obj2 || {}),
+        ]);
+
+        allKeys.forEach((key) => {
+          const currentPath = path ? `${path}.${key}` : key;
+          const val1 = obj1 ? obj1[key] : undefined;
+          const val2 = obj2 ? obj2[key] : undefined;
+
+          if (JSON.stringify(val1) === JSON.stringify(val2)) return;
+
+          if (val1 === undefined) {
+            diff.push({ type: 'ADDED', path: currentPath, value: val2 });
+          } else if (val2 === undefined) {
+            diff.push({ type: 'REMOVED', path: currentPath, value: val1 });
+          } else if (
+            typeof val1 === 'object' &&
+            val1 !== null &&
+            typeof val2 === 'object' &&
+            val2 !== null &&
+            !Array.isArray(val1) &&
+            !Array.isArray(val2)
+          ) {
+            diff.push(...deepDiff(val1, val2, currentPath));
+          } else {
+            diff.push({
+              type: 'MODIFIED',
+              path: currentPath,
+              oldValue: val1,
+              newValue: val2,
+            });
+          }
+        });
+
+        return diff;
+      };
+
+      const DiffValue = ({ value }) => (
+        <pre className="text-xs p-1 rounded-md bg-gray-100 whitespace-pre-wrap break-all">
+          {JSON.stringify(value, null, 2)}
+        </pre>
+      );
+
+      const ComparisonView = ({ configA, configB, configType }) => {
+        const differences = useMemo(() => deepDiff(configA, configB), [
+          configA,
+          configB,
+        ]);
+
+        if (differences.length === 0) {
+          return (
+            <div
+              className="bg-green-50 border-l-4 border-green-500 text-green-800 p-4 rounded-md shadow-sm"
+              role="alert"
+            >
+              <p className="font-bold">No Differences Found</p>
+              <p>The two {configType} configurations are identical.</p>
+            </div>
+          );
+        }
+
+        return (
+          <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm border border-gray-200">
+            <h3 className="text-xl font-bold text-mtn-blue mb-4">
+              Configuration Differences
+            </h3>
+            <div className="space-y-4">
+              {differences.map((diff, index) => (
+                <div key={index} className="p-3 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
+                  <strong className="text-sm font-mono text-mtn-dark break-all">
+                    {diff.path}
+                  </strong>
+                  {diff.type === 'MODIFIED' && (
+                    <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-red-600 font-semibold mb-1">
+                          A (Old Value)
+                        </p>
+                        <div className="border border-red-200 rounded-md p-2 bg-red-50">
+                          <DiffValue value={diff.oldValue} />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-green-600 font-semibold mb-1">
+                          B (New Value)
+                        </p>
+                        <div className="border border-green-200 rounded-md p-2 bg-green-50">
+                          <DiffValue value={diff.newValue} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {diff.type === 'ADDED' && (
+                    <div className="mt-2">
+                      <p className="text-xs text-green-600 font-semibold mb-1">
+                        Added in B
+                      </p>
+                      <div className="border border-green-200 rounded-md p-2 bg-green-50">
+                        <DiffValue value={diff.value} />
+                      </div>
+                    </div>
+                  )}
+                  {diff.type === 'REMOVED' && (
+                    <div className="mt-2">
+                      <p className="text-xs text-red-600 font-semibold mb-1">
+                        Removed from B
+                      </p>
+                      <div className="border border-red-200 rounded-md p-2 bg-red-50">
+                        <DiffValue value={diff.value} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      };
+
+      const ConstellationComparison = ({ configA, configB, formatLongitude }) => {
+        const satellitesA = useMemo(
+          () =>
+            new Map(
+              (configA?.CONSTELLATION?.SATELLITES || []).map((s) => [
+                s.satellite_id,
+                s,
+              ])
+            ),
+          [configA]
+        );
+        const satellitesB = useMemo(
+          () =>
+            new Map(
+              (configB?.CONSTELLATION?.SATELLITES || []).map((s) => [
+                s.satellite_id,
+                s,
+              ])
+            ),
+          [configB]
+        );
+
+        const comparison = useMemo(() => {
+          if (!configA || !configB) return null;
+
+          const added = [...satellitesB.keys()]
+            .filter((id) => !satellitesA.has(id))
+            .map((id) => satellitesB.get(id));
+          const removed = [...satellitesA.keys()]
+            .filter((id) => !satellitesB.has(id))
+            .map((id) => satellitesA.get(id));
+          const commonIds = [...satellitesA.keys()].filter((id) =>
+            satellitesB.has(id)
+          );
+
+          const modified = commonIds
+            .map((id) => {
+              const satA = satellitesA.get(id);
+              const satB = satellitesB.get(id);
+              const carrierKey = (c) =>
+                `${c.beam_id}-${c.center_freq}-${c.polarization}-${c.symbol_rate}`;
+
+              const carriersA = new Map(
+                (satA.CARRIER || []).map((c) => [carrierKey(c), c])
+              );
+              const carriersB = new Map(
+                (satB.CARRIER || []).map((c) => [carrierKey(c), c])
+              );
+
+              const carriersAdded = [...carriersB.keys()]
+                .filter((k) => !carriersA.has(k))
+                .map((k) => carriersB.get(k));
+              const carriersRemoved = [...carriersA.keys()]
+                .filter((k) => !carriersB.has(k))
+                .map((k) => carriersA.get(k));
+
+              const satDiff = deepDiff(satA, satB);
+              const rootChanges = satDiff.filter(
+                (d) => !d.path.startsWith('CARRIER') && !d.path.startsWith('BEAM')
+              );
+
+              if (
+                carriersAdded.length > 0 ||
+                carriersRemoved.length > 0 ||
+                rootChanges.length > 0
+              ) {
+                return {
+                  satellite_id: id,
+                  added: carriersAdded,
+                  removed: carriersRemoved,
+                  changes: rootChanges,
+                };
+              }
+              return null;
+            })
+            .filter(Boolean);
+
+          return { added, removed, modified };
+        }, [configA, configB, satellitesA, satellitesB]);
+
+        if (
+          !comparison ||
+          (comparison.added.length === 0 &&
+            comparison.removed.length === 0 &&
+            comparison.modified.length === 0)
+        ) {
+          return (
+            <div
+              className="bg-green-50 border-l-4 border-green-500 text-green-800 p-4 rounded-md shadow-sm"
+              role="alert"
+            >
+              <p className="font-bold">No Differences Found</p>
+              <p>The two CONSTELLATION_OPT configurations are identical.</p>
+            </div>
+          );
+        }
+
+        const renderCarrier = (carrier) => (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1 text-xs font-mono">
+            <span className="break-all">Beam: {carrier.beam_id}</span>
+            <span className="break-all">{carrier.polarization}</span>
+            <span className="break-all">
+              {(carrier.center_freq / 1000).toFixed(2)} KHz
+            </span>
+            <span className="break-all">{carrier.symbol_rate}</span>
+          </div>
+        );
+
+        return (
+          <div className="space-y-6">
+            {comparison.added.length > 0 && (
+              <CollapsibleCard title="Added Satellites" defaultOpen={true}>
+                <div className="space-y-2">
+                  {comparison.added.map((sat) => (
+                    <div
+                      key={sat.satellite_id}
+                      className="p-2 bg-green-50 border border-green-200 rounded"
+                    >
+                      {sat.satellite_id} ({formatLongitude(sat.longitude)})
+                    </div>
+                  ))}
+                </div>
+              </CollapsibleCard>
+            )}
+            {comparison.removed.length > 0 && (
+              <CollapsibleCard title="Removed Satellites" defaultOpen={true}>
+                <div className="space-y-2">
+                  {comparison.removed.map((sat) => (
+                    <div
+                      key={sat.satellite_id}
+                      className="p-2 bg-red-50 border border-red-200 rounded"
+                    >
+                      {sat.satellite_id} ({formatLongitude(sat.longitude)})
+                    </div>
+                  ))}
+                </div>
+              </CollapsibleCard>
+            )}
+            {comparison.modified.length > 0 && (
+              <CollapsibleCard title="Modified Satellites" defaultOpen={true}>
+                <div className="space-y-4">
+                  {comparison.modified.map((mod) => {
+                    const sat =
+                      satellitesA.get(mod.satellite_id) ||
+                      satellitesB.get(mod.satellite_id);
+                    return (
+                      <div key={mod.satellite_id}>
+                        <h4 className="font-bold text-gray-800">
+                          {mod.satellite_id}{' '}
+                          {sat ? `(${formatLongitude(sat.longitude)})` : ''}
+                        </h4>
+                        {mod.changes.length > 0 && (
+                          <div className="mt-2 text-sm">
+                            {mod.changes.map((change) => (
+                              <div
+                                key={change.path}
+                                className="flex gap-2 p-1 bg-yellow-50 border border-yellow-200 rounded"
+                              >
+                                <span className="font-semibold text-yellow-800">
+                                  {change.path}:
+                                </span>
+                                <span className="text-red-600 line-through">
+                                  {JSON.stringify(change.oldValue)}
+                                </span>
+                                <span>&rarr;</span>
+                                <span className="text-green-600">
+                                  {JSON.stringify(change.newValue)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {mod.added.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-sm font-semibold text-green-700">
+                              Added Carriers:
+                            </p>
+                            <div className="pl-4 space-y-1">
+                              {mod.added.map((c, i) => (
+                                <div
+                                  key={i}
+                                  className="p-1 bg-green-50 rounded border border-green-200"
+                                >
+                                  {renderCarrier(c)}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {mod.removed.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-sm font-semibold text-red-700">
+                              Removed Carriers:
+                            </p>
+                            <div className="pl-4 space-y-1">
+                              {mod.removed.map((c, i) => (
+                                <div
+                                  key={i}
+                                  className="p-1 bg-red-50 rounded border border-red-200"
+                                >
+                                  {renderCarrier(c)}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CollapsibleCard>
+            )}
+          </div>
+        );
+      };
+
+      const LanComparisonView = ({ configA, configB }) => {
+        const differences = useMemo(() => deepDiff(configA, configB), [
+          configA,
+          configB,
+        ]);
+
+        if (differences.length === 0) {
+          return (
+            <div>
+              <div
+                className="bg-green-50 border-l-4 border-green-500 text-green-800 p-4 rounded-md mb-6 shadow-sm"
+                role="alert"
+              >
+                <p className="font-bold">No Differences Found</p>
+                <p>The two TERMINAL_LAN_OPT configurations are identical.</p>
+              </div>
+              <ModemSchematic config={configA} />
+            </div>
+          );
+        }
+
+        return (
+          <div className="space-y-8">
+            <div>
+              <div className="flex items-center gap-4 mb-4">
+                <h3 className="text-2xl font-bold text-mtn-blue">
+                  Configuration A
+                </h3>
+                <span className="text-sm font-medium text-red-600 bg-red-100 px-3 py-1 rounded-full border border-red-200">
+                  Old Value
+                </span>
+              </div>
+              <ModemSchematic config={configA} />
+            </div>
+
+            <div className="border-t border-gray-200 my-8"></div>
+
+            <div>
+              <div className="flex items-center gap-4 mb-4">
+                <h3 className="text-2xl font-bold text-mtn-blue">
+                  Configuration B
+                </h3>
+                <span className="text-sm font-medium text-green-600 bg-green-100 px-3 py-1 rounded-full border border-green-200">
+                  New Value
+                </span>
+              </div>
+              <ModemSchematic config={configB} />
+            </div>
+          </div>
+        );
+      };
+
+      const App = () => {
+        const [configSetA, setConfigSetA] = useState({
+          lan: null,
+          opt: null,
+          constellation: null,
+          fileName: '',
+        });
+        const [configSetB, setConfigSetB] = useState({
+          lan: null,
+          opt: null,
+          constellation: null,
+          fileName: '',
+        });
+        const [error, setError] = useState(null);
+        const [isLoading, setIsLoading] = useState(false);
+        const [currentView, setCurrentView] = useState('upload');
+
+        const formatLongitude = (lon) => {
+          if (typeof lon !== 'number') return '';
+          const direction = lon >= 0 ? 'E' : 'W';
+          return `${Math.abs(lon).toFixed(1)}° ${direction}`;
+        };
+
+        const unwrapJson = (jsonObject) => {
+          const keys = Object.keys(jsonObject);
+          if (
+            keys.length === 1 &&
+            typeof jsonObject[keys[0]] === 'object' &&
+            jsonObject[keys[0]] !== null
+          ) {
+            return jsonObject[keys[0]];
+          }
+          return jsonObject;
+        };
+
+        const handleFileUpload = useCallback(
+          async (files, slot) => {
+            setIsLoading(true);
+            setError(null);
+
+            const setConfig = slot === 'A' ? setConfigSetA : setConfigSetB;
+            const currentConfig = slot === 'A' ? configSetA : configSetB;
+
+            let newConfig = { ...currentConfig };
+            let newFileNames = currentConfig.fileName
+              ? currentConfig.fileName.split(', ').filter(Boolean)
+              : [];
+
+            for (const file of files) {
+              if (newFileNames.includes(file.name)) continue;
+
+              const isZip =
+                file.name.toLowerCase().endsWith('.zip') ||
+                file.type.includes('zip');
+              const isJson =
+                file.name.toLowerCase().endsWith('.json') ||
+                file.type.includes('json');
+
+              if (isZip) {
+                newFileNames.push(file.name);
+                try {
+                  const zip = await JSZip.loadAsync(file);
+
+                  const lanFile = zip.file(/terminal_lan_opt\.json/i)[0];
+                  if (lanFile)
+                    newConfig.lan = deepSortObject(
+                      unwrapJson(JSON.parse(await lanFile.async('string')))
+                    );
+
+                  const optFile = zip.file(/terminal_opt\.json/i)[0];
+                  if (optFile)
+                    newConfig.opt = deepSortObject(
+                      unwrapJson(JSON.parse(await optFile.async('string')))
+                    );
+
+                  const constFile = zip.file(/constellation_opt\.json/i)[0];
+                  if (constFile)
+                    newConfig.constellation = deepSortObject(
+                      JSON.parse(await constFile.async('string'))
+                    );
+                } catch (err) {
+                  setError(
+                    (prev) =>
+                      `${prev ? prev + '\n' : ''}Failed to process ${
+                        file.name
+                      }: ${err.message}`
+                  );
+                  newFileNames = newFileNames.filter(
+                    (name) => name !== file.name
+                  );
+                }
+              } else if (isJson) {
+                newFileNames.push(file.name);
+                try {
+                  const jsonText = await file.text();
+                  const parsedJson = JSON.parse(jsonText);
+                  const sortedJson = deepSortObject(parsedJson);
+
+                  if (sortedJson?.CONSTELLATION?.SATELLITES) {
+                    newConfig.constellation = sortedJson;
+                  } else {
+                    const configData = unwrapJson(sortedJson);
+                    const type = configData?.NMS?.type;
+
+                    if (
+                      type === 'TERMINAL_LAN_OPT' ||
+                      (configData?.SWITCH_PORT &&
+                        configData?.VLAN_CONFIGURATIONS)
+                    ) {
+                      newConfig.lan = configData;
+                    } else {
+                      newConfig.opt = configData;
+                    }
+                  }
+                } catch (err) {
+                  setError(
+                    (prev) =>
+                      `${prev ? prev + '\n' : ''}Failed to process ${
+                        file.name
+                      }: ${err.message}`
+                  );
+                  newFileNames = newFileNames.filter(
+                    (name) => name !== file.name
+                  );
+                }
+              }
+            }
+
+            newConfig.fileName = newFileNames.join(', ');
+            setConfig(newConfig);
+            setIsLoading(false);
+
+            if (currentView === 'upload') {
+              if (newConfig.lan) setCurrentView('lanA');
+              else if (newConfig.opt) setCurrentView('optA');
+              else if (newConfig.constellation)
+                setCurrentView('constellationA');
+            }
+          },
+          [configSetA, configSetB, currentView]
+        );
+
+        const handleReset = (slot) => {
+          const emptyState = {
+            lan: null,
+            opt: null,
+            constellation: null,
+            fileName: '',
+          };
+
+          const getFirstAvailableView = (configSet, suffix) => {
+            if (configSet.lan) return `lan${suffix}`;
+            if (configSet.opt) return `opt${suffix}`;
+            if (configSet.constellation) return `constellation${suffix}`;
+            return null;
+          };
+
+          if (slot === 'A') {
+            const isShowingAView = currentView.endsWith('A');
+            const isShowingCompare = currentView.endsWith('Compare');
+            setConfigSetA(emptyState);
+            if (isShowingAView || (isShowingCompare && !configSetB.fileName)) {
+              const nextView =
+                getFirstAvailableView(configSetB, 'B') || 'upload';
+              setCurrentView(nextView);
+            }
+          } else if (slot === 'B') {
+            const isShowingBView = currentView.endsWith('B');
+            const isShowingCompare = currentView.endsWith('Compare');
+            setConfigSetB(emptyState);
+            if (isShowingBView || (isShowingCompare && !configSetA.fileName)) {
+              const nextView =
+                getFirstAvailableView(configSetA, 'A') || 'upload';
+              setCurrentView(nextView);
+            }
+          } else {
+            // 'all'
+            setConfigSetA(emptyState);
+            setConfigSetB(emptyState);
+            setCurrentView('upload');
+          }
+        };
+
+        const hasAnyConfig = configSetA.fileName || configSetB.fileName;
+        const renderView = () => {
+          switch (currentView) {
+            case 'lanA':
+              return (
+                configSetA.lan && (
+                  <div>
+                    <ModemSchematic config={configSetA.lan} />
+                    <div className="mt-8">
+                      <ConfigurationSummary config={configSetA.lan} />
+                    </div>
+                  </div>
+                )
+              );
+            case 'lanB':
+              return (
+                configSetB.lan && (
+                  <div>
+                    <ModemSchematic config={configSetB.lan} />
+                    <div className="mt-8">
+                      <ConfigurationSummary config={configSetB.lan} />
+                    </div>
+                  </div>
+                )
+              );
+            case 'optA':
+              return (
+                configSetA.opt && <OptConfigurationSummary config={configSetA.opt} />
+              );
+            case 'optB':
+              return (
+                configSetB.opt && <OptConfigurationSummary config={configSetB.opt} />
+              );
+            case 'constellationA':
+              return (
+                configSetA.constellation && (
+                  <ConstellationVisualizer
+                    config={configSetA.constellation}
+                    formatLongitude={formatLongitude}
+                  />
+                )
+              );
+            case 'constellationB':
+              return (
+                configSetB.constellation && (
+                  <ConstellationVisualizer
+                    config={configSetB.constellation}
+                    formatLongitude={formatLongitude}
+                  />
+                )
+              );
+            case 'lanCompare':
+              return (
+                configSetA.lan &&
+                configSetB.lan && (
+                  <LanComparisonView
+                    configA={configSetA.lan}
+                    configB={configSetB.lan}
+                  />
+                )
+              );
+            case 'optCompare':
+              return (
+                configSetA.opt &&
+                configSetB.opt && (
+                  <ComparisonView
+                    configA={configSetA.opt}
+                    configB={configSetB.opt}
+                    configType="TERMINAL_OPT"
+                  />
+                )
+              );
+            case 'constellationCompare':
+              return (
+                configSetA.constellation &&
+                configSetB.constellation && (
+                  <ConstellationComparison
+                    configA={configSetA.constellation}
+                    configB={configSetB.constellation}
+                    formatLongitude={formatLongitude}
+                  />
+                )
+              );
+            default:
+              return null;
+          }
+        };
+
+        const ViewTabs = () => {
+          const tabs = [
+            { id: 'A', label: 'Config A' },
+            { id: 'B', label: 'Config B' },
+            { id: 'Compare', label: 'Compare' },
+          ];
+
+          const activeTab = useMemo(() => {
+            if (currentView.endsWith('Compare')) return 'Compare';
+            if (currentView.endsWith('B')) return 'B';
+            return 'A';
+          }, [currentView]);
+
+          const configTypes = [
+            { id: 'lan', label: 'TERMINAL_LAN_OPT' },
+            { id: 'opt', label: 'TERMINAL_OPT' },
+            { id: 'constellation', label: 'Constellation' },
+          ];
+
+          const handleTabClick = (tabId) => {
+            const currentConfigTypeMatch = currentView.match(
+              /^(lan|opt|constellation)/
+            );
+            const currentConfigType = currentConfigTypeMatch
+              ? currentConfigTypeMatch[0]
+              : 'lan';
+
+            const configTypesInOrder = ['lan', 'opt', 'constellation'];
+            const typesToCheck = [
+              currentConfigType,
+              ...configTypesInOrder.filter((t) => t !== currentConfigType),
+            ];
+
+            for (const type of typesToCheck) {
+              if (tabId === 'A' && configSetA[type]) {
+                setCurrentView(`${type}A`);
+                return;
+              }
+              if (tabId === 'B' && configSetB[type]) {
+                setCurrentView(`${type}B`);
+                return;
+              }
+              if (
+                tabId === 'Compare' &&
+                configSetA[type] &&
+                configSetB[type]
+              ) {
+                setCurrentView(`${type}Compare`);
+                return;
+              }
+            }
+          };
+
+          return (
+            <div className="w-full bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+              <div className="border-b border-gray-200">
+                <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                  {tabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => handleTabClick(tab.id)}
+                      className={`${
+                        activeTab === tab.id
+                          ? 'border-mtn-gold text-mtn-dark'
+                          : 'border-transparent text-gray-500 hover:text-mtn-blue hover:border-gray-300'
+                      } whitespace-nowrap py-4 px-1 border-b-4 font-bold text-sm transition-colors`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </nav>
+              </div>
+              <div className="pt-6">
+                <div className="flex flex-wrap gap-4">
+                  {configTypes.map((type) => {
+                    const isAvailableA = !!configSetA[type.id];
+                    const isAvailableB = !!configSetB[type.id];
+                    const isCompare = activeTab === 'Compare';
+                    const isDisabled = isCompare
+                      ? !(isAvailableA && isAvailableB)
+                      : activeTab === 'A'
+                      ? !isAvailableA
+                      : !isAvailableB;
+                    const targetView = `${type.id}${
+                      isCompare ? 'Compare' : activeTab
+                    }`;
+
+                    const isActive =
+                      currentView.toLowerCase() === targetView.toLowerCase();
+
+                    return (
+                      <button
+                        key={type.id + activeTab}
+                        disabled={isDisabled}
+                        onClick={() => setCurrentView(targetView)}
+                        className={`font-semibold py-2 px-4 rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-50 ${
+                          isDisabled
+                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                            : isActive
+                            ? 'bg-mtn-blue text-white shadow-md transform scale-105'
+                            : 'bg-white hover:bg-mtn-pale-blue text-mtn-dark border border-gray-300'
+                        }`}
+                      >
+                        {type.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        return (
+          <div className="min-h-screen p-4 sm:p-6 lg:p-8 bg-mtn-neutral">
+            <div className="max-w-screen-xl mx-auto">
+              {/* OLD HEADER REMOVED FROM HERE */}
+
+              <main>
+                {isLoading && (
+                  <div className="text-center py-12">
+                    <p className="text-lg text-mtn-blue animate-pulse font-semibold">
+                      Parsing configuration...
+                    </p>
+                  </div>
+                )}
+
+                {!isLoading && !hasAnyConfig && (
+                  <div className="mt-12">
+                    <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                      <FileUpload
+                        slotLabel="Configuration A"
+                        onFileUpload={(files) => handleFileUpload(files, 'A')}
+                        setError={setError}
+                      />
+                      <FileUpload
+                        slotLabel="Configuration B"
+                        onFileUpload={(files) => handleFileUpload(files, 'B')}
+                        setError={setError}
+                      />
+                    </div>
+                    {error && (
+                      <div
+                        className="mt-8 max-w-4xl mx-auto bg-red-50 border border-red-300 text-red-800 px-4 py-3 rounded-lg shadow-sm"
+                        role="alert"
+                      >
+                        <strong className="font-bold">Error:</strong>
+                        <pre className="mt-2 text-sm whitespace-pre-wrap">
+                          {error}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!isLoading && hasAnyConfig && (
+                  <div className="grid lg:grid-cols-12 gap-8 mt-8">
+                    <aside className="lg:col-span-4 space-y-6 min-w-0">
+                      <FileUpload
+                        slotLabel="Configuration A"
+                        onFileUpload={(files) => handleFileUpload(files, 'A')}
+                        fileName={configSetA.fileName}
+                        onReset={() => handleReset('A')}
+                        setError={setError}
+                      />
+                      {configSetA.opt && (
+                        <KeyInformation config={configSetA.opt} />
+                      )}
+
+                      <FileUpload
+                        slotLabel="Configuration B"
+                        onFileUpload={(files) => handleFileUpload(files, 'B')}
+                        fileName={configSetB.fileName}
+                        onReset={() => handleReset('B')}
+                        setError={setError}
+                      />
+                      {configSetB.opt && (
+                        <KeyInformation config={configSetB.opt} />
+                      )}
+
+                      <button
+                        onClick={() => handleReset('all')}
+                        className="w-full text-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-danger hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                      >
+                        Reset All Configurations
+                      </button>
+
+                      {error && (
+                        <div
+                          className="bg-red-50 border border-red-300 text-red-800 px-4 py-3 rounded-lg shadow-sm"
+                          role="alert"
+                        >
+                          <strong className="font-bold">Error:</strong>
+                          <pre className="mt-2 text-sm whitespace-pre-wrap">
+                            {error}
+                          </pre>
+                        </div>
+                      )}
+                    </aside>
+
+                    <div className="lg:col-span-8 min-w-0">
+                      <ViewTabs />
+                      <div className="mt-8">
+                        {renderView() || (
+                          <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
+                            <h2 className="text-xl font-semibold text-mtn-blue">
+                              Select a View
+                            </h2>
+                            <p className="mt-2 text-gray-500">
+                              Please upload a valid configuration file and
+                              select a view from the tabs above.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </main>
+            </div>
+          </div>
+        );
+      };
+
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<App />);
+    </script>
+  </body>
+</html>
