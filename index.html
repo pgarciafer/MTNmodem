@@ -12,7 +12,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       // 3. CONFIGURE TAILWIND TO USE YOUR SHARED CSS VARIABLES
-      // This ensures if you change style.css, the React app updates automatically.
       tailwind.config = {
         theme: {
           extend: {
@@ -35,7 +34,8 @@
               success: '#28a745',
             },
             fontFamily: {
-              sans: ['Inter', 'system-ui', 'sans-serif'],
+              // MODIFIED: Point Tailwind's default sans font to your shared variable
+              sans: ['var(--main-font)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
             }
           },
         },
@@ -2269,6 +2269,40 @@
 
       const root = ReactDOM.createRoot(document.getElementById('root'));
       root.render(<App />);
+    </script>
+
+    <script>
+      // Wait for the browser to finish loading fonts
+      document.fonts.ready.then(function () {
+        // Check if "CorporateFont" is properly loaded
+        // IMPORTANT: Ensure this name matches the @font-face family name in your shared style.css
+        const fontName = 'CorporateFont'; 
+        
+        // Check if the font is active. If checks fail, it usually means the font file 404'd or CORS blocked it.
+        if (!document.fonts.check(`12px "${fontName}"`)) {
+            
+            const warning = document.createElement('div');
+            warning.style.cssText = `
+                position: fixed; 
+                top: 0; 
+                left: 0; 
+                width: 100%; 
+                background-color: #ff4444; 
+                color: white; 
+                text-align: center; 
+                padding: 15px; 
+                font-weight: bold; 
+                z-index: 10000;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            `;
+            warning.innerHTML = `⚠️ FONT ERROR: "${fontName}" could not be loaded. <br> <span style="font-weight:normal; font-size: 0.9em;">Check that the TTF file is in the "fonts" folder and the name in style.css is correct.</span>`;
+            
+            document.body.prepend(warning);
+            console.error(`Font check failed: ${fontName} is not active.`);
+        } else {
+            console.log(`Success: ${fontName} is loaded and active.`);
+        }
+      });
     </script>
   </body>
 </html>
